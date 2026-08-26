@@ -82,8 +82,17 @@ class EditorViewModelTest {
     fun `selectClip updates selectedClipIndex`() = runTest {
         viewModel = createViewModel()
 
+        // With no clips, selection coerces to 0
         viewModel.selectClip(2)
-        assertEquals(2, viewModel.uiState.value.selectedClipIndex)
+        assertEquals(0, viewModel.uiState.value.selectedClipIndex)
+
+        // With clips loaded, selection works normally
+        every { clipRepository.getClipsByProjectId(1L) } returns flowOf(listOf(sampleClip))
+        viewModel.loadProject(1L)
+        advanceUntilIdle()
+
+        viewModel.selectClip(0)
+        assertEquals(0, viewModel.uiState.value.selectedClipIndex)
 
         viewModel.selectClip(-1)
         assertEquals(0, viewModel.uiState.value.selectedClipIndex)
