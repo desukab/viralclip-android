@@ -2,6 +2,7 @@ package com.viralclip.app.data.database.dao
 
 import androidx.room.*
 import com.viralclip.app.data.database.entities.*
+import com.viralclip.app.domain.model.TemplateCategory
 import kotlinx.coroutines.flow.Flow
 
 @Dao

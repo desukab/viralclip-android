@@ -587,7 +587,7 @@ private fun FiltersPanel(
             Text("Adjust Filters", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(12.dp))
 
-            SliderSettingRow("Brightness", filters.brightness + 1f, { onFiltersChange(filters.copy(brightness = it - 1f)), 0f..2f)
+            SliderSettingRow("Brightness", filters.brightness + 1f, { onFiltersChange(filters.copy(brightness = it - 1f)) }, 0f..2f)
             SliderSettingRow("Contrast", filters.contrast, { onFiltersChange(filters.copy(contrast = it)) }, 0f..2f)
             SliderSettingRow("Saturation", filters.saturation, { onFiltersChange(filters.copy(saturation = it)) }, 0f..2f)
 
