@@ -116,7 +116,7 @@ class HomeViewModelTest {
         viewModel = createViewModel()
         advanceUntilIdle()
 
-        pipelineStateFlow.value = ProcessingState.Analyzing
+        pipelineStateFlow.value = ProcessingState.Analyzing(progress = 0.5f)
         advanceUntilIdle()
 
         assertTrue("Should reflect analyzing state",
