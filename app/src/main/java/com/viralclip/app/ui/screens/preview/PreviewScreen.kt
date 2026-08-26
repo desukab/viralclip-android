@@ -4,21 +4,16 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.viralclip.app.R
 import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
@@ -43,10 +38,10 @@ fun PreviewScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Preview", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.preview_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, "Back")
+                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.nav_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkSurface)
@@ -57,8 +52,8 @@ fun PreviewScreen(
         if (clips.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.VideoLibrary,
-                title = "No clips found",
-                message = "Process a video first to generate clips",
+                title = stringResource(R.string.preview_no_clips),
+                message = stringResource(R.string.preview_no_clips_desc),
                 modifier = Modifier.padding(padding)
             )
         } else {
@@ -69,13 +64,13 @@ fun PreviewScreen(
             ) {
                 item {
                     Text(
-                        "AI found ${clips.size} viral clips",
+                        stringResource(R.string.preview_ai_found, clips.size),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Ranked by virality potential. Tap to preview and export.",
+                        stringResource(R.string.preview_ranked),
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
@@ -91,9 +86,9 @@ fun PreviewScreen(
                             watchTime = clip.viralityScore * 0.8f,
                             hookStrength = (clip.viralityScore * 1.1f).coerceAtMost(1f),
                             reasons = buildList {
-                                if (clip.viralityScore > 0.7f) add("High viral potential")
-                                if (clip.captions.isNotEmpty()) add("Captions available")
-                                add("AI-detected highlight #${index + 1}")
+                                if (clip.viralityScore > 0.7f) add(stringResource(R.string.preview_high_viral))
+                                if (clip.captions.isNotEmpty()) add(stringResource(R.string.preview_captions_available))
+                                add(stringResource(R.string.preview_highlight, index + 1))
                             },
                             suggestedStartTime = clip.startTimeMs,
                             suggestedEndTime = clip.endTimeMs
@@ -101,7 +96,7 @@ fun PreviewScreen(
                     )
 
                     GradientButton(
-                        text = "Export Clip",
+                        text = stringResource(R.string.preview_export_clip),
                         onClick = { onNavigateToExport(clip.id) },
                         icon = Icons.Filled.FileDownload,
                         modifier = Modifier.fillMaxWidth()

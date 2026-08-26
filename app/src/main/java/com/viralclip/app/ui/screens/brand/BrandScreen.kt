@@ -13,10 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.viralclip.app.R
 import com.viralclip.app.domain.model.BrandPreset
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
@@ -36,7 +37,7 @@ fun BrandScreen(
     }
 
     Scaffold(
-        topBar = { GradientTopBar("Brand Presets", onBack = onNavigateBack) },
+        topBar = { GradientTopBar(stringResource(R.string.brand_title), onBack = onNavigateBack) },
         containerColor = DarkBackground,
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -45,9 +46,9 @@ fun BrandScreen(
                 contentColor = Color.White,
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(Icons.Filled.Add, null)
+                Icon(Icons.Filled.Add, stringResource(R.string.brand_create))
                 Spacer(Modifier.width(8.dp))
-                Text("Create Brand")
+                Text(stringResource(R.string.brand_create))
             }
         }
     ) { padding ->
@@ -58,8 +59,8 @@ fun BrandScreen(
         } else if (uiState.presets.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.Palette,
-                title = "No brand presets",
-                message = "Create your first brand preset to maintain consistent styling across videos",
+                title = stringResource(R.string.brand_no_presets),
+                message = stringResource(R.string.brand_no_presets_desc),
                 modifier = Modifier.padding(padding)
             )
         } else {
@@ -134,16 +135,16 @@ private fun BrandPresetCard(
                                 .background(Color(color))
                         )
                     }
-                    Text("Colors", style = MaterialTheme.typography.labelSmall, color = TextTertiary, modifier = Modifier.padding(start = 4.dp))
+                    Text(stringResource(R.string.brand_colors_label), style = MaterialTheme.typography.labelSmall, color = TextTertiary, modifier = Modifier.padding(start = 4.dp))
                 }
                 if (preset.watermarkEnabled) {
                     Spacer(Modifier.height(4.dp))
-                    Text("Watermark: ${preset.watermarkText ?: "Enabled"}",
+                    Text(stringResource(R.string.brand_watermark_label, preset.watermarkText ?: ""),
                         style = MaterialTheme.typography.labelSmall, color = ViralPurple)
                 }
             }
 
-            Icon(Icons.Filled.ChevronRight, null, tint = TextTertiary)
+            Icon(Icons.Filled.ChevronRight, stringResource(R.string.nav_back), tint = TextTertiary)
         }
     }
 }

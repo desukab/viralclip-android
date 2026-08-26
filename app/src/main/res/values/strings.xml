@@ -7,6 +7,7 @@
     <string name="nav_projects">Projects</string>
     <string name="nav_templates">Templates</string>
     <string name="nav_settings">Settings</string>
+    <string name="nav_back">Back</string>
 
     <!-- Home Screen -->
     <string name="home_title">Create viral clips</string>
@@ -150,6 +151,53 @@
     <string name="virality_medium">Medium Virality Potential</string>
     <string name="virality_low">Low Virality Potential</string>
     <string name="virality_scoring">Analyzing virality…</string>
+
+    <!-- Preview Screen -->
+    <string name="preview_title">Preview</string>
+    <string name="preview_no_clips">No clips found</string>
+    <string name="preview_no_clips_desc">Process a video first to generate clips</string>
+    <string name="preview_ai_found">AI found %d viral clips</string>
+    <string name="preview_ranked">Ranked by virality potential. Tap to preview and export.</string>
+    <string name="preview_export_clip">Export Clip</string>
+    <string name="preview_high_viral">High viral potential</string>
+    <string name="preview_captions_available">Captions available</string>
+    <string name="preview_highlight">AI-detected highlight #%d</string>
+
+    <!-- Brand Screen -->
+    <string name="brand_no_presets">No brand presets</string>
+    <string name="brand_no_presets_desc">Create your first brand preset to maintain consistent styling across videos</string>
+    <string name="brand_colors_label">Colors</string>
+    <string name="brand_watermark_label">Watermark: %s</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_dark_mode_desc">Use dark theme</string>
+    <string name="settings_haptic_desc">Vibration on interactions</string>
+    <string name="settings_gpu_desc">Use GPU for faster processing</string>
+    <string name="settings_auto_save_desc">Save changes automatically</string>
+    <string name="settings_default_platform">Default Platform</string>
+    <string name="settings_default_quality">Default Quality</string>
+    <string name="settings_default_fps">Default FPS</string>
+    <string name="settings_fps_format">%d fps</string>
+    <string name="settings_cache_format">%d MB</string>
+    <string name="settings_videos_processed">Videos Processed</string>
+    <string name="settings_clips_exported">Clips Exported</string>
+    <string name="settings_version_number">1.0.0</string>
+    <string name="settings_rate_us">Rate Us</string>
+    <string name="settings_rate_desc">Love ViralClip? Rate us!</string>
+    <string name="settings_feedback">Send Feedback</string>
+    <string name="settings_feedback_desc">Help us improve</string>
+
+    <!-- Processing -->
+    <string name="processing_analyzing_video">Analyzing video…</string>
+    <string name="processing_detecting_faces">Detecting faces…</string>
+    <string name="processing_scoring_virality">Scoring virality…</string>
+    <string name="processing_generating_captions">Generating captions…</string>
+    <string name="processing_complete">Processing complete!</string>
+    <string name="processing_failed">Processing failed</string>
+
+    <!-- Export Service -->
+    <string name="export_service_exporting">Exporting video…</string>
+    <string name="export_notification_channel">Export Progress</string>
 
     <!-- Common -->
     <string name="ok">OK</string>

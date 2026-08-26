@@ -9,13 +9,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.viralclip.app.R
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
 import com.viralclip.app.ui.viewmodels.SettingsViewModel
@@ -29,7 +28,7 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        topBar = { GradientTopBar("Settings", onBack = onNavigateBack) },
+        topBar = { GradientTopBar(stringResource(R.string.settings_title), onBack = onNavigateBack) },
         containerColor = DarkBackground
     ) { padding ->
         Column(
@@ -39,61 +38,65 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // General
-            SettingsSection("General") {
+            SettingsSection(stringResource(R.string.settings_general)) {
                 ToggleSettingRow(
-                    "Dark Mode", "Use dark theme",
+                    stringResource(R.string.settings_dark_mode),
+                    stringResource(R.string.settings_dark_mode_desc),
                     uiState.darkMode, { viewModel.updateDarkMode(it) }
                 )
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 ToggleSettingRow(
-                    "Haptic Feedback", "Vibration on interactions",
+                    stringResource(R.string.settings_haptic_feedback),
+                    stringResource(R.string.settings_haptic_desc),
                     uiState.hapticFeedback, { viewModel.updateHapticFeedback(it) }
                 )
             }
 
             // Processing
-            SettingsSection("Processing") {
+            SettingsSection(stringResource(R.string.settings_processing)) {
                 ToggleSettingRow(
-                    "GPU Acceleration", "Use GPU for faster processing",
+                    stringResource(R.string.settings_gpu_acceleration),
+                    stringResource(R.string.settings_gpu_desc),
                     uiState.gpuAcceleration, { viewModel.updateGpuAcceleration(it) }
                 )
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 ToggleSettingRow(
-                    "Auto-Save", "Save changes automatically",
+                    stringResource(R.string.settings_auto_save),
+                    stringResource(R.string.settings_auto_save_desc),
                     uiState.autoSave, { viewModel.updateAutoSave(it) }
                 )
             }
 
             // Export Defaults
-            SettingsSection("Export Defaults") {
-                SettingsItem("Default Platform", uiState.defaultPlatform, Icons.Filled.Devices)
+            SettingsSection(stringResource(R.string.settings_export)) {
+                SettingsItem(stringResource(R.string.settings_default_platform), uiState.defaultPlatform, Icons.Filled.Devices)
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Default Quality", uiState.defaultQuality, Icons.Filled.HighQuality)
+                SettingsItem(stringResource(R.string.settings_default_quality), uiState.defaultQuality, Icons.Filled.HighQuality)
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Default FPS", "${uiState.defaultFps} fps", Icons.Filled.Speed)
+                SettingsItem(stringResource(R.string.settings_default_fps), stringResource(R.string.settings_fps_format, uiState.defaultFps), Icons.Filled.Speed)
             }
 
             // Storage
-            SettingsSection("Storage") {
-                SettingsItem("Cache Size", "${uiState.cacheSizeMb} MB", Icons.Filled.Storage)
+            SettingsSection(stringResource(R.string.settings_storage)) {
+                SettingsItem(stringResource(R.string.settings_cache_size), stringResource(R.string.settings_cache_format, uiState.cacheSizeMb.toInt()), Icons.Filled.Storage)
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Clear Cache", "", Icons.Filled.DeleteSweep, onClick = { viewModel.clearCache() })
+                SettingsItem(stringResource(R.string.settings_clear_cache), "", Icons.Filled.DeleteSweep, onClick = { viewModel.clearCache() })
             }
 
             // Stats
-            SettingsSection("Stats") {
-                SettingsItem("Videos Processed", "${uiState.totalProcessedVideos}", Icons.Filled.VideoLibrary)
+            SettingsSection(stringResource(R.string.settings_about)) {
+                SettingsItem(stringResource(R.string.settings_videos_processed), "${uiState.totalProcessedVideos}", Icons.Filled.VideoLibrary)
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Clips Exported", "${uiState.totalExportedClips}", Icons.Filled.FileDownload)
+                SettingsItem(stringResource(R.string.settings_clips_exported), "${uiState.totalExportedClips}", Icons.Filled.FileDownload)
             }
 
             // About
-            SettingsSection("About") {
-                SettingsItem("Version", "1.0.0", Icons.Filled.Info)
+            SettingsSection(stringResource(R.string.settings_about)) {
+                SettingsItem(stringResource(R.string.settings_version), stringResource(R.string.settings_version_number), Icons.Filled.Info)
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Rate Us", "Love ViralClip? Rate us!", Icons.Filled.Star, onClick = {})
+                SettingsItem(stringResource(R.string.settings_rate_us), stringResource(R.string.settings_rate_desc), Icons.Filled.Star, onClick = {})
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Send Feedback", "Help us improve", Icons.Filled.Feedback, onClick = {})
+                SettingsItem(stringResource(R.string.settings_feedback), stringResource(R.string.settings_feedback_desc), Icons.Filled.Feedback, onClick = {})
             }
 
             Spacer(Modifier.height(40.dp))
