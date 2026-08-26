@@ -94,13 +94,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideFrameAnalyzer(@ApplicationContext context: Context): FrameAnalyzer {
-        return FrameAnalyzer(context)
+    fun provideFrameAnalyzer(@ApplicationContext context: Context, ffmpegProcessor: FFmpegProcessor): FrameAnalyzer {
+        return FrameAnalyzer(context, ffmpegProcessor)
     }
 
     // Repositories
     @Provides @Singleton
-    fun provideProjectRepository(dao: ProjectDao): ProjectRepository = ProjectRepositoryImpl(dao)
+    fun provideProjectRepository(projectDao: ProjectDao, clipDao: ClipDao): ProjectRepository = ProjectRepositoryImpl(projectDao, clipDao)
 
     @Provides @Singleton
     fun provideClipRepository(dao: ClipDao): ClipRepository = ClipRepositoryImpl(dao)
