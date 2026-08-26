@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.viralclip.app.R
+import com.viralclip.app.domain.model.ProcessingState
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
 import com.viralclip.app.ui.viewmodels.HomeViewModel
@@ -167,8 +168,16 @@ fun HomeScreen(
                 }
             }
 
-            // Processing Overlay
-            ProcessingOverlay(state = uiState.processingState)
+            // Processing Overlay — auto-dismiss on Complete and navigate
+            val currentState = uiState.processingState
+            LaunchedEffect(currentState) {
+                if (currentState is ProcessingState.Complete) {
+                    kotlinx.coroutines.delay(1500) // show "Complete!" briefly
+                    viewModel.dismissProcessing()
+                    uiState.lastProcessedProject?.let { onNavigateToEditor(it.id) }
+                }
+            }
+            ProcessingOverlay(state = currentState)
 
             // Error Snackbar
             uiState.errorMessage?.let { error ->

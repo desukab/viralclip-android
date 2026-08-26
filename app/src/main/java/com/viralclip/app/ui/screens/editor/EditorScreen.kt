@@ -21,7 +21,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView as StyledPlayerView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.DisposableEffect
 import com.viralclip.app.R
 import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.components.*
@@ -210,32 +216,62 @@ private fun VideoPreviewArea(
     onPlayPause: () -> Unit,
     onSeek: (Long) -> Unit
 ) {
+    val context = LocalContext.current
+    val exoPlayer = remember(clip?.sourceVideoUri) {
+        if (clip?.sourceVideoUri != null) {
+            ExoPlayer.Builder(context).build().apply {
+                val mediaItem = MediaItem.fromUri(clip.sourceVideoUri)
+                setMediaItem(mediaItem)
+                prepare()
+                playWhenReady = false
+            }
+        } else null
+    }
+
+    DisposableEffect(exoPlayer) {
+        onDispose { exoPlayer?.release() }
+    }
+
+    LaunchedEffect(isPlaying, exoPlayer) {
+        exoPlayer?.playWhenReady = isPlaying
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(9f / 16f)
             .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(DarkSurfaceHighest, DarkSurfaceElevated)
-                )
-            ),
+            .background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
-        // Video preview placeholder
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                Icons.Filled.PlayCircleFilled,
-                contentDescription = null,
-                modifier = Modifier.size(72.dp),
-                tint = ViralPurple.copy(alpha = 0.6f)
+        // Real ExoPlayer video preview
+        if (exoPlayer != null) {
+            AndroidView(
+                factory = { ctx ->
+                    StyledPlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = false // we have our own play/pause button
+                        setShowBuffering(StyledPlayerView.SHOW_BUFFERING_NEVER)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
             )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                clip?.name ?: "No clip selected",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
-            )
+        } else {
+            // Fallback when no clip
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    Icons.Filled.PlayCircleFilled,
+                    contentDescription = null,
+                    modifier = Modifier.size(72.dp),
+                    tint = ViralPurple.copy(alpha = 0.6f)
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    clip?.name ?: "No clip selected",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            }
         }
 
         // Play/Pause button

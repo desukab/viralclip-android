@@ -87,9 +87,10 @@ class ExportViewModel @Inject constructor(
             _uiState.update { it.copy(isExporting = true, exportProgress = 0f, errorMessage = null) }
             try {
                 val outputDir = context.getExportDirectory()
+                val originalName = state.project?.name?.take(50)?.replace(Regex("[^a-zA-Z0-9_\\- ]"), "") ?: "ViralClip"
                 val outputFile = File(
                     outputDir,
-                    "ViralClip_${System.currentTimeMillis()}.${state.selectedFormat.extension}"
+                    "${originalName}_${state.selectedPlatform.displayName.replace(" ", "")}.${state.selectedFormat.extension}"
                 )
 
                 val sourceUri = Uri.parse(clip.sourceVideoUri)

@@ -112,6 +112,10 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(errorMessage = null) }
     }
 
+    fun dismissProcessing() {
+        _uiState.update { it.copy(processingState = ProcessingState.Idle) }
+    }
+
     fun showImportDialog() {
         _uiState.update { it.copy(showImportDialog = true) }
     }
