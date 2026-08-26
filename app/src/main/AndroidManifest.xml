@@ -53,13 +53,13 @@
         <!-- Video Processing Service -->
         <service
             android:name=".services.VideoProcessingService"
-            android:foregroundServiceType="mediaProcessing"
+            android:foregroundServiceType="dataSync"
             android:exported="false" />
 
         <!-- Export Service -->
         <service
             android:name=".services.ExportService"
-            android:foregroundServiceType="mediaProcessing"
+            android:foregroundServiceType="dataSync"
             android:exported="false" />
 
         <!-- File Provider for sharing -->
