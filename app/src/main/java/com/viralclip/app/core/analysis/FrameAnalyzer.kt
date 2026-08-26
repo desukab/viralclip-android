@@ -39,28 +39,32 @@ class FrameAnalyzer @Inject constructor(
         for ((index, pair) in frames.withIndex()) {
             val (timestampMs, bitmap) = pair
 
-            val brightness = analyzeBrightness(bitmap)
-            val motionScore = if (index > 0) {
-                calculateMotion(bitmap, frames[index - 1].second)
-            } else 0f
+            try {
+                if (bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) continue
 
-            val sceneType = classifyScene(brightness, motionScore)
-            val engagement = calculateEngagementScore(brightness, motionScore)
+                val brightness = analyzeBrightness(bitmap)
+                val motionScore = if (index > 0 && !frames[index - 1].second.isRecycled) {
+                    calculateMotion(bitmap, frames[index - 1].second)
+                } else 0f
 
-            analyses.add(
-                FrameAnalysis(
-                    timestampMs = timestampMs,
-                    brightness = brightness,
-                    motionScore = motionScore,
-                    faceCount = 0, // Will be populated by FaceTracker
-                    facePositions = emptyList(),
-                    sceneType = sceneType,
-                    speechDetected = brightness > 0.2f, // Simplified
-                    engagementScore = engagement
+                val sceneType = classifyScene(brightness, motionScore)
+                val engagement = calculateEngagementScore(brightness, motionScore)
+
+                analyses.add(
+                    FrameAnalysis(
+                        timestampMs = timestampMs,
+                        brightness = brightness,
+                        motionScore = motionScore,
+                        faceCount = 0, // Will be populated by FaceTracker
+                        facePositions = emptyList(),
+                        sceneType = sceneType,
+                        speechDetected = brightness > 0.2f, // Simplified
+                        engagementScore = engagement
+                    )
                 )
-            )
-
-            bitmap.recycle()
+            } catch (_: Exception) {
+                // Bitmap may be recycled or invalid, skip this frame
+            }
             _progress.value = (index + 1).toFloat() / frames.size
         }
 
@@ -80,17 +84,23 @@ class FrameAnalyzer @Inject constructor(
 
         for ((index, pair) in frames.withIndex()) {
             val (timestampMs, bitmap) = pair
-            val histogram = computeHistogram(bitmap)
 
-            if (prevHistogram != null) {
-                val diff = histogramDifference(prevHistogram, histogram)
-                if (diff > threshold) {
-                    sceneChanges.add(timestampMs)
+            try {
+                if (bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) continue
+
+                val histogram = computeHistogram(bitmap)
+
+                if (prevHistogram != null) {
+                    val diff = histogramDifference(prevHistogram, histogram)
+                    if (diff > threshold) {
+                        sceneChanges.add(timestampMs)
+                    }
                 }
-            }
 
-            prevHistogram = histogram
-            bitmap.recycle()
+                prevHistogram = histogram
+            } catch (_: Exception) {
+                // Bitmap may be recycled or invalid, skip this frame
+            }
         }
 
         sceneChanges

@@ -72,24 +72,29 @@ class FaceTracker @Inject constructor(
         for ((index, pair) in frames.withIndex()) {
             val (timestampMs, bitmap) = pair
 
-            val faces = detectFaces(bitmap)
-            allFaces.addAll(faces)
+            try {
+                // Create a copy to avoid recycled bitmap issues with ML Kit
+                val copy = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height)
 
-            val mainFace = selectMainFace(faces)
-            val refocusPoint = calculateRefocusPoint(
-                mainFace, faces, targetWidth, targetHeight
-            )
+                val faces = detectFaces(copy)
+                allFaces.addAll(faces)
 
-            trackedFrames.add(
-                TrackedFrame(
-                    timestampMs = timestampMs,
-                    faces = faces,
-                    mainFace = mainFace,
-                    refocusPoint = refocusPoint
+                val mainFace = selectMainFace(faces)
+                val refocusPoint = calculateRefocusPoint(
+                    mainFace, faces, targetWidth, targetHeight
                 )
-            )
 
-            bitmap.recycle()
+                trackedFrames.add(
+                    TrackedFrame(
+                        timestampMs = timestampMs,
+                        faces = faces,
+                        mainFace = mainFace,
+                        refocusPoint = refocusPoint
+                    )
+                )
+            } catch (_: Exception) {
+                // Bitmap may already be recycled or invalid, skip this frame
+            }
             _progress.value = (index + 1).toFloat() / frames.size
         }
 
@@ -119,6 +124,7 @@ class FaceTracker @Inject constructor(
      */
     suspend fun detectFaces(bitmap: Bitmap): List<FacePosition> = withContext(Dispatchers.Default) {
         try {
+            if (bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) return@withContext emptyList()
             val image = InputImage.fromBitmap(bitmap, 0)
             val faces = detector.process(image).await()
             faces.map { face ->

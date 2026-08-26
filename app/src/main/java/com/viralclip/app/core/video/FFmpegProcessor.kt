@@ -24,8 +24,6 @@ class FFmpegProcessor @Inject constructor(
     private val _progress = MutableStateFlow(0f)
     val progress: StateFlow<Float> = _progress
 
-    private val retriever = MediaMetadataRetriever()
-
     data class VideoInfo(
         val durationMs: Long,
         val width: Int,
@@ -37,21 +35,22 @@ class FFmpegProcessor @Inject constructor(
     )
 
     suspend fun getVideoInfo(videoUri: Uri): VideoInfo = withContext(Dispatchers.IO) {
+        val mmr = MediaMetadataRetriever()
         try {
-            retriever.setDataSource(context, videoUri)
-            val duration = retriever.extractMetadata(
+            mmr.setDataSource(context, videoUri)
+            val duration = mmr.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_DURATION
             )?.toLongOrNull() ?: 0L
-            val width = retriever.extractMetadata(
+            val width = mmr.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH
             )?.toIntOrNull() ?: 0
-            val height = retriever.extractMetadata(
+            val height = mmr.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT
             )?.toIntOrNull() ?: 0
-            val bitrate = retriever.extractMetadata(
+            val bitrate = mmr.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_BITRATE
             )?.toIntOrNull() ?: 0
-            val rotation = retriever.extractMetadata(
+            val rotation = mmr.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION
             )?.toIntOrNull() ?: 0
 
@@ -66,39 +65,60 @@ class FFmpegProcessor @Inject constructor(
             )
         } catch (e: Exception) {
             VideoInfo(0, 1920, 1080, 8_000_000, 30f, true, 0)
+        } finally {
+            try { mmr.release() } catch (_: Exception) {}
         }
     }
 
     suspend fun extractFrame(videoUri: Uri, timeMs: Long): Bitmap? = withContext(Dispatchers.IO) {
+        val mmr = MediaMetadataRetriever()
         try {
-            retriever.setDataSource(context, videoUri)
-            retriever.getFrameAtTime(timeMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            mmr.setDataSource(context, videoUri)
+            mmr.getFrameAtTime(timeMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
         } catch (e: Exception) {
             null
+        } finally {
+            try { mmr.release() } catch (_: Exception) {}
         }
     }
 
     suspend fun extractFrames(
         videoUri: Uri,
-        intervalMs: Long = 1000L
+        intervalMs: Long = 5000L,
+        maxFrames: Int = 30
     ): List<Pair<Long, Bitmap>> = withContext(Dispatchers.IO) {
         val frames = mutableListOf<Pair<Long, Bitmap>>()
+        val startTime = System.currentTimeMillis()
         try {
-            retriever.setDataSource(context, videoUri)
-            val duration = retriever.extractMetadata(
+            val mmr = MediaMetadataRetriever()
+            mmr.setDataSource(context, videoUri)
+            val duration = mmr.extractMetadata(
                 MediaMetadataRetriever.METADATA_KEY_DURATION
             )?.toLongOrNull() ?: 0L
 
+            // Calculate interval to get ~maxFrames frames
+            val effectiveInterval = if (duration > 0) {
+                maxOf(intervalMs, duration / maxFrames)
+            } else intervalMs
+
             var timeMs = 0L
-            while (timeMs < duration) {
-                val frame = retriever.getFrameAtTime(
-                    timeMs * 1000,
-                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC
-                )
-                frame?.let { frames.add(timeMs to it) }
-                timeMs += intervalMs
-                _progress.value = timeMs.toFloat() / duration
+            while (timeMs < duration && frames.size < maxFrames) {
+                // Timeout after 10 seconds
+                if (System.currentTimeMillis() - startTime > 10_000) break
+
+                try {
+                    val frame = mmr.getFrameAtTime(
+                        timeMs * 1000,
+                        MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+                    )
+                    if (frame != null && !frame.isRecycled) {
+                        frames.add(timeMs to frame)
+                    }
+                } catch (_: Exception) { }
+                timeMs += effectiveInterval
+                _progress.value = (timeMs.toFloat() / duration).coerceIn(0f, 1f)
             }
+            try { mmr.release() } catch (_: Exception) {}
         } catch (e: Exception) {
             // Return what we have
         }
@@ -111,9 +131,10 @@ class FFmpegProcessor @Inject constructor(
         timeMs: Long = 0L,
         outputFile: File
     ): Boolean = withContext(Dispatchers.IO) {
+        val mmr = MediaMetadataRetriever()
         try {
-            retriever.setDataSource(context, videoUri)
-            val frame = retriever.getFrameAtTime(
+            mmr.setDataSource(context, videoUri)
+            val frame = mmr.getFrameAtTime(
                 timeMs * 1000,
                 MediaMetadataRetriever.OPTION_CLOSEST_SYNC
             )
@@ -122,11 +143,12 @@ class FFmpegProcessor @Inject constructor(
                 outputFile.outputStream().use { os ->
                     it.compress(Bitmap.CompressFormat.JPEG, 85, os)
                 }
-                it.recycle()
                 true
             } ?: false
         } catch (e: Exception) {
             false
+        } finally {
+            try { mmr.release() } catch (_: Exception) {}
         }
     }
 
@@ -300,7 +322,4 @@ class FFmpegProcessor @Inject constructor(
         }
     }
 
-    fun release() {
-        try { retriever.release() } catch (_: Exception) {}
-    }
 }

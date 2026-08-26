@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,56 +52,87 @@ class VideoProcessingPipeline @Inject constructor(
         context: Context,
         maxClips: Int = 8
     ): PipelineResult = withContext(Dispatchers.Default) {
-        _state.value = ProcessingState.Analyzing(0f, "Loading video…")
+        val result = withTimeoutOrNull(30_000L) { // 30 second timeout for entire pipeline
+            _state.value = ProcessingState.Analyzing(0f, "Loading video…")
 
-        // Stage 1: Get video metadata
-        val videoInfo = ffmpegProcessor.getVideoInfo(videoUri)
-        _state.value = ProcessingState.Analyzing(0.1f, "Analyzing video…")
+            // Stage 1: Get video metadata
+            val videoInfo = ffmpegProcessor.getVideoInfo(videoUri)
+            _state.value = ProcessingState.Analyzing(0.1f, "Analyzing video…")
 
-        // Stage 2: Extract frames at 1fps for analysis
-        val frames = ffmpegProcessor.extractFrames(videoUri, intervalMs = 2000L)
-        _state.value = ProcessingState.Analyzing(0.2f, "Extracted ${frames.size} frames")
+            // Stage 2: Extract frames at 1fps for analysis
+            val frames = ffmpegProcessor.extractFrames(videoUri, intervalMs = 2000L)
+            _state.value = ProcessingState.Analyzing(0.2f, "Extracted ${frames.size} frames")
 
-        // Stage 3: Analyze audio
-        _state.value = ProcessingState.Transcribing(0.3f)
-        val audioInfo = audioProcessor.getAudioInfo(videoUri)
-        val audioSegments = audioProcessor.analyzeAudioSegments(videoUri)
+            // Stage 3: Analyze audio
+            _state.value = ProcessingState.Transcribing(0.3f)
+            val audioInfo = audioProcessor.getAudioInfo(videoUri)
+            val audioSegments = audioProcessor.analyzeAudioSegments(videoUri)
 
-        // Stage 4: Detect and track faces
-        _state.value = ProcessingState.DetectingFaces(0.4f)
-        val faceResult = faceTracker.trackFaces(frames)
+            // Stage 4: Detect and track faces
+            _state.value = ProcessingState.DetectingFaces(0.4f)
+            val faceResult = faceTracker.trackFaces(frames)
 
-        // Stage 5: Analyze frames
-        _state.value = ProcessingState.Analyzing(0.5f, "Analyzing frames…")
-        val frameAnalyses = frameAnalyzer.analyzeFrames(frames)
+            // Stage 5: Analyze frames
+            _state.value = ProcessingState.Analyzing(0.5f, "Analyzing frames…")
+            val frameAnalyses = frameAnalyzer.analyzeFrames(frames)
 
-        // Stage 6: Score virality and find best clips
-        _state.value = ProcessingState.ScoringVirality(0.6f)
-        val viralityResult = viralityScorer.analyzeAndScore(
-            videoUri, videoInfo.durationMs, audioSegments, frames
-        )
+            // Stage 6: Score virality and find best clips
+            _state.value = ProcessingState.ScoringVirality(0.6f)
+            val viralityResult = viralityScorer.analyzeAndScore(
+                videoUri, videoInfo.durationMs, audioSegments, frames
+            )
 
-        // Stage 7: Generate captions for top clips
-        _state.value = ProcessingState.GeneratingClips(0.8f)
-        val transcription = captionGenerator.generateCaptions(videoUri)
+            // Stage 7: Generate captions for top clips
+            _state.value = ProcessingState.GeneratingClips(0.8f)
+            val transcription = captionGenerator.generateCaptions(videoUri)
 
-        // Stage 8: Assemble final clips
-        _state.value = ProcessingState.GeneratingClips(0.9f)
-        val generatedClips = assembleClips(
-            videoUri, viralityResult, transcription, faceResult
-        )
+            // Stage 8: Assemble final clips
+            _state.value = ProcessingState.GeneratingClips(0.9f)
+            val generatedClips = assembleClips(
+                videoUri, viralityResult, transcription, faceResult
+            )
 
-        _state.value = ProcessingState.Complete
+            PipelineResult(
+                videoInfo = videoInfo,
+                audioInfo = audioInfo,
+                viralityResult = viralityResult,
+                transcription = transcription,
+                faceTrackResult = faceResult,
+                frameAnalyses = frameAnalyses,
+                generatedClips = generatedClips
+            )
+        }
 
-        PipelineResult(
-            videoInfo = videoInfo,
-            audioInfo = audioInfo,
-            viralityResult = viralityResult,
-            transcription = transcription,
-            faceTrackResult = faceResult,
-            frameAnalyses = frameAnalyses,
-            generatedClips = generatedClips
-        )
+        if (result != null) {
+            _state.value = ProcessingState.Complete
+            result
+        } else {
+            // Timed out — return minimal result
+            _state.value = ProcessingState.Error("Processing timed out. Try a shorter video.")
+            PipelineResult(
+                videoInfo = FFmpegProcessor.VideoInfo(0, 0, 0, 0, 30f, true, 0),
+                audioInfo = AudioProcessor.AudioInfo(44100, 1, 128000, 0, "aac"),
+                viralityResult = ViralityScorer.ScoringResult(
+                    clips = emptyList(),
+                    overallVideoScore = 0f,
+                    analysisSummary = "Processing timed out."
+                ),
+                transcription = CaptionGenerator.TranscriptionResult(
+                    segments = emptyList(),
+                    language = "en",
+                    totalWords = 0,
+                    durationMs = 0L
+                ),
+                faceTrackResult = FaceTracker.FaceTrackResult(
+                    frames = emptyList(),
+                    dominantSpeaker = null,
+                    avgFaceSize = 0f,
+                    facePresentRatio = 0f
+                ),
+                frameAnalyses = emptyList(),
+                generatedClips = emptyList()
+            )
+        }
     }
 
     /**

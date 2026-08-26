@@ -153,9 +153,11 @@ class AudioProcessor @Inject constructor(
      */
     suspend fun analyzeAudioSegments(
         videoUri: Uri,
-        segmentDurationMs: Long = 1000L
+        segmentDurationMs: Long = 1000L,
+        maxSegments: Int = 120
     ): List<AudioSegment> = withContext(Dispatchers.IO) {
         val segments = mutableListOf<AudioSegment>()
+        val startTime = System.currentTimeMillis()
         try {
             val extractor = MediaExtractor()
             extractor.setDataSource(context, videoUri, null)
@@ -182,24 +184,31 @@ class AudioProcessor @Inject constructor(
             var sampleCount = 0
             var currentSegmentStart = 0L
 
-            while (true) {
+            while (segments.size < maxSegments) {
+                // Timeout after 5 seconds
+                if (System.currentTimeMillis() - startTime > 5_000) break
+
                 val size = extractor.readSampleData(buffer, 0)
                 if (size < 0) break
 
                 val timeUs = extractor.sampleTime
 
                 // Simple amplitude calculation from PCM samples
-                buffer.position(0)
-                var amplitude = 0.0
-                var count = 0
-                while (buffer.hasRemaining() && buffer.remaining() >= 2) {
-                    val sample = buffer.short.toFloat() / Short.MAX_VALUE
-                    amplitude += Math.abs(sample.toDouble())
-                    count++
-                }
-                if (count > 0) {
-                    totalAmplitude += amplitude / count
-                    sampleCount++
+                try {
+                    buffer.position(0)
+                    var amplitude = 0.0
+                    var count = 0
+                    while (buffer.hasRemaining() && buffer.remaining() >= 2) {
+                        val sample = buffer.short.toFloat() / Short.MAX_VALUE
+                        amplitude += Math.abs(sample.toDouble())
+                        count++
+                    }
+                    if (count > 0) {
+                        totalAmplitude += amplitude / count
+                        sampleCount++
+                    }
+                } catch (_: Exception) {
+                    // Buffer read error, skip this sample
                 }
 
                 // Check if we've crossed a segment boundary
@@ -223,9 +232,9 @@ class AudioProcessor @Inject constructor(
                 extractor.advance()
             }
 
-            extractor.release()
+            try { extractor.release() } catch (_: Exception) {}
         } catch (e: Exception) {
-            e.printStackTrace()
+            // Return what we have
         }
         segments
     }
