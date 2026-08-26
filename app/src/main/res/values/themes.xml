@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ViralClip" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="colorPrimary">@color/viral_purple</item>
+        <item name="colorPrimaryDark">@color/viral_purple_dark</item>
+        <item name="colorAccent">@color/viral_pink</item>
+    </style>
+
+    <style name="Theme.ViralClip.Splash" parent="Theme.ViralClip">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+</resources>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-files-path name="videos" path="Videos/" />
+    <external-files-path name="exports" path="Exports/" />
+    <external-files-path name="thumbnails" path="Thumbnails/" />
+    <cache-path name="cache" path="/" />
+    <files-path name="files" path="/" />
+</paths>
