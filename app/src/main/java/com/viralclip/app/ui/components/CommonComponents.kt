@@ -116,7 +116,7 @@ fun ViralityScoreCard(
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    progress = animatedScore,
+                    progress = { animatedScore },
                     modifier = Modifier.fillMaxSize(),
                     strokeWidth = 8.dp,
                     color = scoreColor,
@@ -558,7 +558,7 @@ fun ProcessingOverlay(
                 }
                 if (progress > 0f) {
                     LinearProgressIndicator(
-                        progress = progress,
+                        progress = { progress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp)

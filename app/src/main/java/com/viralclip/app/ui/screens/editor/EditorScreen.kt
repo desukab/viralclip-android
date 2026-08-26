@@ -279,7 +279,7 @@ private fun VideoPreviewArea(
                 }
                 // Progress bar
                 LinearProgressIndicator(
-                    progress = if (it.durationMs > 0) currentPositionMs.toFloat() / it.durationMs else 0f,
+                    progress = { if (it.durationMs > 0) currentPositionMs.toFloat() / it.durationMs else 0f },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp)
