@@ -81,11 +81,11 @@ class VideoProcessingPipeline @Inject constructor(
         )
 
         // Stage 7: Generate captions for top clips
-        _state.value = ProcessingState.GeneratingClips(0.8f, "Generating captions…")
+        _state.value = ProcessingState.GeneratingClips(0.8f)
         val transcription = captionGenerator.generateCaptions(videoUri)
 
         // Stage 8: Assemble final clips
-        _state.value = ProcessingState.GeneratingClips(0.9f, "Assembling clips…")
+        _state.value = ProcessingState.GeneratingClips(0.9f)
         val generatedClips = assembleClips(
             videoUri, viralityResult, transcription, faceResult
         )

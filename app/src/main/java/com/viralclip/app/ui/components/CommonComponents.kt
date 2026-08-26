@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -456,6 +457,7 @@ fun GradientTopBar(
 
 // ─── Platform Chip ───────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlatformChip(
     platform: PlatformPreset,
@@ -532,7 +534,8 @@ fun ProcessingOverlay(
                     is ProcessingState.DetectingFaces -> "Detecting faces…"
                     is ProcessingState.ScoringVirality -> "Scoring virality…"
                     is ProcessingState.GeneratingClips -> "Generating clips…"
-                    is ProcessingState.Exiting -> "Exporting…"
+                    is ProcessingState.ApplyingCaptions -> "Applying captions…"
+                    is ProcessingState.Exporting -> "Exporting…"
                     is ProcessingState.Error -> "Error: ${state.message}"
                     ProcessingState.Complete -> "Complete!"
                     ProcessingState.Idle -> ""
@@ -549,7 +552,8 @@ fun ProcessingOverlay(
                     is ProcessingState.DetectingFaces -> state.progress
                     is ProcessingState.ScoringVirality -> state.progress
                     is ProcessingState.GeneratingClips -> state.progress
-                    is ProcessingState.Exiting -> state.progress
+                    is ProcessingState.ApplyingCaptions -> state.progress
+                    is ProcessingState.Exporting -> state.progress
                     else -> 0f
                 }
                 if (progress > 0f) {

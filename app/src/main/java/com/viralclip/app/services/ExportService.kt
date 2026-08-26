@@ -118,9 +118,19 @@ class ExportService : Service() {
     }
 
     private fun updateNotification(text: String, progress: Int) {
-        val notification = createNotification(text).apply {
-            setProgress(100, progress.coerceIn(0, 100), false)
-        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, ViralClipApp.CHANNEL_EXPORT)
+            .setContentTitle("ViralClip Export")
+            .setContentText(text)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .setProgress(100, progress.coerceIn(0, 100), false)
+            .build()
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         manager.notify(NOTIFICATION_ID, notification)
     }

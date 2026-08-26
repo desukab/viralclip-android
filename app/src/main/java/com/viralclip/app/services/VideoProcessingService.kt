@@ -61,7 +61,8 @@ class VideoProcessingService : Service() {
                             is ProcessingState.DetectingFaces -> "Detecting faces…" to (state.progress * 100).toInt()
                             is ProcessingState.ScoringVirality -> "Scoring virality…" to (state.progress * 100).toInt()
                             is ProcessingState.GeneratingClips -> "Generating clips…" to (state.progress * 100).toInt()
-                            is ProcessingState.Exiting -> "Exporting…" to (state.progress * 100).toInt()
+                            is ProcessingState.ApplyingCaptions -> "Applying captions…" to (state.progress * 100).toInt()
+                            is ProcessingState.Exporting -> "Exporting…" to (state.progress * 100).toInt()
                             is ProcessingState.Error -> "Error: ${state.message}" to 0
                             ProcessingState.Complete -> "Complete!" to 100
                             ProcessingState.Idle -> "Preparing…" to 0
@@ -120,11 +121,27 @@ class VideoProcessingService : Service() {
     }
 
     private fun updateNotification(text: String, progress: Int) {
-        val notification = createNotification(text).apply {
-            // Update progress
-            setProgress(100, progress.coerceIn(0, 100), false)
-            setContentText(text)
-        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val cancelIntent = PendingIntent.getService(
+            this, 0,
+            Intent(this, VideoProcessingService::class.java).apply {
+                action = ACTION_CANCEL
+            },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(this, ViralClipApp.CHANNEL_PROCESSING)
+            .setContentTitle("ViralClip")
+            .setContentText(text)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentIntent(pendingIntent)
+            .addAction(R.drawable.ic_cancel, "Cancel", cancelIntent)
+            .setOngoing(true)
+            .setProgress(100, progress.coerceIn(0, 100), false)
+            .build()
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         manager.notify(NOTIFICATION_ID, notification)
     }

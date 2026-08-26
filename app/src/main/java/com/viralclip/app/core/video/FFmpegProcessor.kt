@@ -2,6 +2,7 @@ package com.viralclip.app.core.video
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.media.MediaExtractor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers

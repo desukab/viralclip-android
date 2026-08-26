@@ -3,6 +3,7 @@ package com.viralclip.app.ui.components
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -93,10 +94,10 @@ fun CaptionPresetCard(
                     text = "Aa",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
+                    color = Color.Unspecified,
                     brush = if (colors.size > 1) {
                         Brush.linearGradient(colors.map { Color(it) })
-                    } else null,
-                    color = if (colors.size == 1) Color(colors[0]) else Color.Unspecified
+                    } else null
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
@@ -235,6 +236,7 @@ fun ToggleSettingRow(
 
 // ─── Platform Selection Grid ─────────────────────────────────────────
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PlatformSelectionGrid(
     selectedPlatform: PlatformPreset,
