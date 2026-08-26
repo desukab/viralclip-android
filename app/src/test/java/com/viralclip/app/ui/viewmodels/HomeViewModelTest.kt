@@ -1,6 +1,7 @@
 package com.viralclip.app.ui.viewmodels
 
 import com.viralclip.app.core.video.FFmpegProcessor
+import com.viralclip.app.domain.model.ProcessingState
 import com.viralclip.app.domain.model.Project
 import com.viralclip.app.domain.repository.ClipRepository
 import com.viralclip.app.domain.repository.ProjectRepository
@@ -21,10 +22,10 @@ class HomeViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
-    @MockK private lateinit var projectRepository: ProjectRepository
-    @MockK private lateinit var clipRepository: ClipRepository
-    @MockK private lateinit var pipeline: VideoProcessingPipeline
-    @MockK private lateinit var ffmpegProcessor: FFmpegProcessor
+    private lateinit var projectRepository: ProjectRepository
+    private lateinit var clipRepository: ClipRepository
+    private lateinit var pipeline: VideoProcessingPipeline
+    private lateinit var ffmpegProcessor: FFmpegProcessor
 
     private lateinit var pipelineStateFlow: MutableStateFlow<ProcessingState>
 
@@ -32,7 +33,10 @@ class HomeViewModelTest {
 
     @Before
     fun setup() {
-        MockKAnnotations.init(this)
+        projectRepository = mockk(relaxed = true)
+        clipRepository = mockk(relaxed = true)
+        pipeline = mockk(relaxed = true)
+        ffmpegProcessor = mockk(relaxed = true)
         Dispatchers.setMain(testDispatcher)
         pipelineStateFlow = MutableStateFlow(ProcessingState.Idle)
         every { projectRepository.getRecentProjects(10) } returns flowOf(emptyList())
@@ -59,10 +63,10 @@ class HomeViewModelTest {
     @Test
     fun `loadProjects populates projects list`() = runTest {
         val projects = listOf(
-            Project(id = 1L, name = "Project 1", sourceVideoUri = "c1", sourceVideoPath = "/p1",
-                durationMs = 5000L, status = "completed", createdAt = 0L, updatedAt = 0L),
-            Project(id = 2L, name = "Project 2", sourceVideoUri = "c2", sourceVideoPath = "/p2",
-                durationMs = 10000L, status = "completed", createdAt = 0L, updatedAt = 0L)
+            Project(id = 1L, name = "Project 1", sourceVideoUri = "c1",
+                duration = 5000L, createdAt = 0L, updatedAt = 0L),
+            Project(id = 2L, name = "Project 2", sourceVideoUri = "c2",
+                duration = 10000L, createdAt = 0L, updatedAt = 0L)
         )
         every { projectRepository.getRecentProjects(10) } returns flowOf(projects)
 

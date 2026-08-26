@@ -19,9 +19,9 @@ class EditorViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
-    @MockK private lateinit var projectRepository: ProjectRepository
-    @MockK private lateinit var clipRepository: ClipRepository
-    @MockK private lateinit var captionRepository: CaptionRepository
+    private lateinit var projectRepository: ProjectRepository
+    private lateinit var clipRepository: ClipRepository
+    private lateinit var captionRepository: CaptionRepository
 
     private lateinit var viewModel: EditorViewModel
 
@@ -33,13 +33,15 @@ class EditorViewModelTest {
 
     private val sampleProject = Project(
         id = 1L, name = "Test Project", sourceVideoUri = "content://test",
-        sourceVideoPath = "/tmp/test.mp4", durationMs = 10000L, status = "completed",
+        duration = 10000L,
         createdAt = System.currentTimeMillis(), updatedAt = System.currentTimeMillis()
     )
 
     @Before
     fun setup() {
-        MockKAnnotations.init(this)
+        projectRepository = mockk(relaxed = true)
+        clipRepository = mockk(relaxed = true)
+        captionRepository = mockk(relaxed = true)
         Dispatchers.setMain(testDispatcher)
     }
 
@@ -197,7 +199,7 @@ class EditorViewModelTest {
 
     @Test
     fun `updateCaptionStyle pushes action to undo stack`() = runTest {
-        val newStyle = CaptionStyle(fontSize = 24f)
+        val newStyle = CaptionStyle(fontSize = 24)
         every { clipRepository.getClipsByProjectId(1L) } returns flowOf(listOf(sampleClip))
         coEvery { clipRepository.updateClip(any()) } just Runs
 

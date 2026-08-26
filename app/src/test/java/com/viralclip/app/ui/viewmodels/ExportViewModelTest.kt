@@ -18,15 +18,17 @@ class ExportViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
-    @MockK private lateinit var clipRepository: ClipRepository
-    @MockK private lateinit var projectRepository: ProjectRepository
-    @MockK private lateinit var ffmpegProcessor: FFmpegProcessor
+    private lateinit var clipRepository: ClipRepository
+    private lateinit var projectRepository: ProjectRepository
+    private lateinit var ffmpegProcessor: FFmpegProcessor
 
     private lateinit var viewModel: ExportViewModel
 
     @Before
     fun setup() {
-        MockKAnnotations.init(this)
+        clipRepository = mockk(relaxed = true)
+        projectRepository = mockk(relaxed = true)
+        ffmpegProcessor = mockk(relaxed = true)
         Dispatchers.setMain(testDispatcher)
     }
 

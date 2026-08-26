@@ -1,6 +1,6 @@
 package com.viralclip.app.ui.viewmodels
 
-import com.viralclip.app.data.preferences.UserPreferences
+import com.viralclip.app.data.preferences.AppPreferences
 import com.viralclip.app.data.preferences.UserPreferencesManager
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -16,17 +16,17 @@ import org.junit.Test
 class SettingsViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
-    private lateinit var prefsFlow: MutableStateFlow<UserPreferences>
+    private lateinit var prefsFlow: MutableStateFlow<AppPreferences>
 
-    @MockK private lateinit var preferencesManager: UserPreferencesManager
+    private lateinit var preferencesManager: UserPreferencesManager
 
     private lateinit var viewModel: SettingsViewModel
 
     @Before
     fun setup() {
-        MockKAnnotations.init(this)
+        preferencesManager = mockk(relaxed = true)
         Dispatchers.setMain(testDispatcher)
-        prefsFlow = MutableStateFlow(UserPreferences())
+        prefsFlow = MutableStateFlow(AppPreferences())
         every { preferencesManager.preferences } returns prefsFlow
         coEvery { preferencesManager.updateDarkMode(any()) } just Runs
         coEvery { preferencesManager.updateGpuAcceleration(any()) } just Runs
@@ -112,7 +112,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `state reflects all preference fields`() = runTest {
-        val customPrefs = UserPreferences(
+        val customPrefs = AppPreferences(
             darkMode = false,
             gpuAcceleration = false,
             autoSave = false,
