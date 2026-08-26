@@ -18,9 +18,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.viralclip.app.R
 import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
@@ -51,7 +53,7 @@ fun EditorScreen(
                 title = { Text("Edit Clip", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, "Back")
+                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.nav_back))
                     }
                 },
                 actions = {
@@ -61,7 +63,7 @@ fun EditorScreen(
                         enabled = uiState.canUndo
                     ) {
                         Icon(
-                            Icons.Filled.Undo, "Undo",
+                            Icons.Filled.Undo, stringResource(R.string.editor_undo),
                             tint = if (uiState.canUndo) TextPrimary else TextTertiary
                         )
                     }
@@ -70,7 +72,7 @@ fun EditorScreen(
                         enabled = uiState.canRedo
                     ) {
                         Icon(
-                            Icons.Filled.Redo, "Redo",
+                            Icons.Filled.Redo, stringResource(R.string.editor_redo),
                             tint = if (uiState.canRedo) TextPrimary else TextTertiary
                         )
                     }
@@ -459,7 +461,7 @@ private fun TrimControls(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Icon(Icons.Filled.ContentCut, null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.ContentCut, stringResource(R.string.editor_trim), modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Split", fontSize = 13.sp)
                 }
@@ -469,7 +471,7 @@ private fun TrimControls(
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorColor)
                 ) {
-                    Icon(Icons.Filled.Delete, null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.Delete, stringResource(R.string.editor_delete), modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
                     Text("Delete", fontSize = 13.sp)
                 }

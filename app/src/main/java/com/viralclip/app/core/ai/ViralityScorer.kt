@@ -15,7 +15,7 @@ import javax.inject.Singleton
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.max
-import kotlin.math.sqrt
+
 
 /**
  * AI-powered virality scoring engine.

@@ -14,10 +14,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.viralclip.app.R
 import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
@@ -42,12 +44,12 @@ fun CaptionsScreen(
                 title = { Text("Captions", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, "Back")
+                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.nav_back))
                     }
                 },
                 actions = {
                     TextButton(onClick = { viewModel.generateCaptions() }) {
-                        Icon(Icons.Filled.AutoAwesome, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Filled.AutoAwesome, stringResource(R.string.captions_generate), modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("Generate", color = ViralPurple)
                     }

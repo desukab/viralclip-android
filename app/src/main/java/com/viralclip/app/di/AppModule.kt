@@ -15,7 +15,6 @@ import com.viralclip.app.domain.repository.ProjectRepository
 import com.viralclip.app.domain.repository.CaptionRepository
 import com.viralclip.app.domain.repository.TemplateRepository
 import com.viralclip.app.domain.repository.BrandPresetRepository
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

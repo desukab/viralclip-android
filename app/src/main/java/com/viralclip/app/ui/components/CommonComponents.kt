@@ -18,11 +18,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.viralclip.app.R
 import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.theme.*
 
@@ -442,7 +444,7 @@ fun GradientTopBar(
         navigationIcon = {
             if (onBack != null) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Filled.ArrowBack, "Back")
+                    Icon(Icons.Filled.ArrowBack, stringResource(R.string.nav_back))
                 }
             }
         },

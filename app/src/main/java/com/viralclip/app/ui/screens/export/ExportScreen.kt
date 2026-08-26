@@ -16,12 +16,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.viralclip.app.R
 import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
@@ -46,7 +48,7 @@ fun ExportScreen(
                 title = { Text("Export", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, "Back")
+                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.nav_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkSurface)
@@ -80,7 +82,7 @@ fun ExportScreen(
                             .background(Brush.linearGradient(listOf(ViralPurple, ViralPink))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.FileDownload, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                        Icon(Icons.Filled.FileDownload, stringResource(R.string.export_button), tint = Color.White, modifier = Modifier.size(40.dp))
                     }
                     Spacer(Modifier.height(12.dp))
                     Text(uiState.clip?.name ?: "Clip", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -202,7 +204,7 @@ fun ExportScreen(
                                 .background(ViralGreen.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.CheckCircle, null, tint = ViralGreen, modifier = Modifier.size(48.dp))
+                            Icon(Icons.Filled.CheckCircle, stringResource(R.string.export_complete), tint = ViralGreen, modifier = Modifier.size(48.dp))
                         }
                         Spacer(Modifier.height(16.dp))
                         Text("Export Complete!", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
