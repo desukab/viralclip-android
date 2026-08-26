@@ -41,8 +41,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             val keystorePath = System.getenv("KEYSTORE_PATH")
             if (keystorePath != null) {
                 signingConfig = signingConfigs.getByName("release")
@@ -140,12 +140,7 @@ dependencies {
     // ML Kit - Face Detection
     implementation("com.google.mlkit:face-detection:16.1.6")
 
-    // OkHttp + Retrofit (for future API integrations)
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
-
-    // Gson
+    // Gson (for Room TypeConverters)
     implementation("com.google.code.gson:gson:2.10.1")
 
     // Coroutines
@@ -155,15 +150,14 @@ dependencies {
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.5.0")
 
-    // Accompanist
-    implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
-    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
-
     // Lottie animations
     implementation("com.airbnb.android:lottie-compose:6.3.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("io.mockk:mockk:1.13.9")
+    testImplementation("app.cash.turbine:turbine:1.0.0")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }

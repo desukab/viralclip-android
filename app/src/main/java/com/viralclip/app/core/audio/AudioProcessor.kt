@@ -1,8 +1,6 @@
 package com.viralclip.app.core.audio
 
 import android.content.Context
-import android.media.AudioFormat
-import android.media.AudioRecord
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -18,8 +16,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Audio processing engine for extraction, transcription prep, volume adjustment,
- * and background noise analysis.
+ * Audio processing engine for extraction, analysis, volume detection,
+ * and speech confidence estimation.
  */
 @Singleton
 class AudioProcessor @Inject constructor(
@@ -46,10 +44,12 @@ class AudioProcessor @Inject constructor(
 
     /**
      * Extract audio information from a video file.
+     * Returns default values on failure.
      */
     suspend fun getAudioInfo(videoUri: Uri): AudioInfo = withContext(Dispatchers.IO) {
+        var extractor: MediaExtractor? = null
         try {
-            val extractor = MediaExtractor()
+            extractor = MediaExtractor()
             extractor.setDataSource(context, videoUri, null)
 
             var sampleRate = 44100
@@ -65,32 +65,37 @@ class AudioProcessor @Inject constructor(
                 if (mime.startsWith("audio/")) {
                     sampleRate = trackFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                     channels = trackFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-                    bitrate = trackFormat.getInteger(MediaFormat.KEY_BIT_RATE)
-                    duration = trackFormat.getLong(MediaFormat.KEY_DURATION) / 1000
+                    bitrate = if (trackFormat.containsKey(MediaFormat.KEY_BIT_RATE))
+                        trackFormat.getInteger(MediaFormat.KEY_BIT_RATE) else 128000
+                    duration = if (trackFormat.containsKey(MediaFormat.KEY_DURATION))
+                        trackFormat.getLong(MediaFormat.KEY_DURATION) / 1000 else 0L
                     format = mime.removePrefix("audio/")
                     break
                 }
             }
 
-            extractor.release()
-
             AudioInfo(sampleRate, channels, bitrate, duration, format)
         } catch (e: Exception) {
             AudioInfo(44100, 1, 128000, 0, "aac")
+        } finally {
+            try { extractor?.release() } catch (_: Exception) {}
         }
     }
 
     /**
      * Extract audio track from video as separate file.
+     * Uses try-finally to guarantee resource cleanup.
      */
     suspend fun extractAudio(
         videoUri: Uri,
         outputFile: File,
         onProgress: (Float) -> Unit = {}
     ): Boolean = withContext(Dispatchers.IO) {
+        var extractor: MediaExtractor? = null
+        var muxer: MediaMuxer? = null
         try {
             onProgress(0f)
-            val extractor = MediaExtractor()
+            extractor = MediaExtractor()
             extractor.setDataSource(context, videoUri, null)
 
             var audioTrackIndex = -1
@@ -108,7 +113,7 @@ class AudioProcessor @Inject constructor(
             val format = extractor.getTrackFormat(audioTrackIndex)
 
             outputFile.parentFile?.mkdirs()
-            val muxer = MediaMuxer(
+            muxer = MediaMuxer(
                 outputFile.absolutePath,
                 MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
             )
@@ -118,6 +123,8 @@ class AudioProcessor @Inject constructor(
             val bufferSize = 1024 * 1024
             val buffer = ByteBuffer.allocate(bufferSize)
             val bufferInfo = MediaCodec.BufferInfo()
+            val duration = if (format.containsKey(MediaFormat.KEY_DURATION))
+                format.getLong(MediaFormat.KEY_DURATION) else 1L
 
             while (true) {
                 bufferInfo.offset = 0
@@ -129,37 +136,38 @@ class AudioProcessor @Inject constructor(
                 muxer.writeSampleData(trackIndex, buffer, bufferInfo)
                 extractor.advance()
 
-                if (bufferInfo.presentationTimeUs > 0) {
-                    val duration = format.getLong(MediaFormat.KEY_DURATION)
-                    if (duration > 0) {
-                        onProgress(bufferInfo.presentationTimeUs.toFloat() / duration)
-                    }
+                if (bufferInfo.presentationTimeUs > 0 && duration > 0) {
+                    onProgress((bufferInfo.presentationTimeUs.toFloat() / duration).coerceIn(0f, 0.99f))
                 }
             }
 
-            muxer.stop()
-            muxer.release()
-            extractor.release()
             onProgress(1f)
             true
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        } finally {
+            try { muxer?.stop() } catch (_: Exception) {}
+            try { muxer?.release() } catch (_: Exception) {}
+            try { extractor?.release() } catch (_: Exception) {}
         }
     }
 
     /**
      * Analyze audio levels in segments for silence detection and speech confidence.
+     * Reads raw audio samples and computes RMS amplitude per segment.
      */
     suspend fun analyzeAudioSegments(
         videoUri: Uri,
         segmentDurationMs: Long = 1000L,
-        maxSegments: Int = 120
+        maxSegments: Int = 300
     ): List<AudioSegment> = withContext(Dispatchers.IO) {
         val segments = mutableListOf<AudioSegment>()
         val startTime = System.currentTimeMillis()
+        var extractor: MediaExtractor? = null
+
         try {
-            val extractor = MediaExtractor()
+            extractor = MediaExtractor()
             extractor.setDataSource(context, videoUri, null)
 
             var audioTrackIndex = -1
@@ -176,65 +184,80 @@ class AudioProcessor @Inject constructor(
             extractor.selectTrack(audioTrackIndex)
             val format = extractor.getTrackFormat(audioTrackIndex)
             val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
-            val channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
-            val durationUs = format.getLong(MediaFormat.KEY_DURATION)
 
-            val buffer = ByteBuffer.allocate(4096)
-            var totalAmplitude = 0.0
-            var sampleCount = 0
+            val buffer = ByteBuffer.allocate(8192)
+            var segmentAmplitudeSum = 0.0
+            var segmentSampleCount = 0
             var currentSegmentStart = 0L
+            val segmentDurationUs = segmentDurationMs * 1000
 
             while (segments.size < maxSegments) {
-                // Timeout after 5 seconds
-                if (System.currentTimeMillis() - startTime > 5_000) break
+                // Timeout after 10 seconds
+                if (System.currentTimeMillis() - startTime > 10_000) break
 
                 val size = extractor.readSampleData(buffer, 0)
                 if (size < 0) break
 
                 val timeUs = extractor.sampleTime
 
-                // Simple amplitude calculation from PCM samples
+                // Compute RMS amplitude from PCM samples in the buffer
                 try {
                     buffer.position(0)
-                    var amplitude = 0.0
+                    var sumSquares = 0.0
                     var count = 0
                     while (buffer.hasRemaining() && buffer.remaining() >= 2) {
                         val sample = buffer.short.toFloat() / Short.MAX_VALUE
-                        amplitude += Math.abs(sample.toDouble())
+                        sumSquares += sample * sample
                         count++
                     }
                     if (count > 0) {
-                        totalAmplitude += amplitude / count
-                        sampleCount++
+                        segmentAmplitudeSum += sumSquares / count
+                        segmentSampleCount++
                     }
                 } catch (_: Exception) {
-                    // Buffer read error, skip this sample
+                    // Buffer read error, skip this chunk
                 }
 
                 // Check if we've crossed a segment boundary
-                if (timeUs - currentSegmentStart >= segmentDurationMs * 1000) {
-                    val avgVolume = if (sampleCount > 0) (totalAmplitude / sampleCount).toFloat() else 0f
+                if (timeUs - currentSegmentStart >= segmentDurationUs) {
+                    val rmsAmplitude = if (segmentSampleCount > 0)
+                        Math.sqrt(segmentAmplitudeSum / segmentSampleCount).toFloat() else 0f
+
+                    // Clamp RMS to 0-1 range (typical speech RMS is 0.01-0.3)
+                    val normalizedVolume = (rmsAmplitude * 3f).coerceIn(0f, 1f)
+
+                    // Speech confidence: higher RMS = more likely speech
+                    // Silence threshold ~0.01, typical speech ~0.05-0.2
+                    val isSilent = normalizedVolume < 0.02f
+                    val speechConfidence = when {
+                        normalizedVolume < 0.02f -> 0f        // Silence
+                        normalizedVolume < 0.05f -> 0.3f      // Whisper / background
+                        normalizedVolume < 0.15f -> 0.7f      // Normal speech
+                        normalizedVolume < 0.3f -> 0.9f       // Loud speech
+                        else -> 1.0f                          // Very loud / shouting
+                    }
+
                     segments.add(
                         AudioSegment(
                             startTimeMs = currentSegmentStart / 1000,
                             endTimeMs = timeUs / 1000,
-                            volume = avgVolume.coerceIn(0f, 1f),
-                            isSilent = avgVolume < 0.01f,
-                            speechConfidence = (avgVolume * 3f).coerceIn(0f, 1f)
+                            volume = normalizedVolume,
+                            isSilent = isSilent,
+                            speechConfidence = speechConfidence
                         )
                     )
                     currentSegmentStart = timeUs
-                    totalAmplitude = 0.0
-                    sampleCount = 0
+                    segmentAmplitudeSum = 0.0
+                    segmentSampleCount = 0
                 }
 
                 buffer.clear()
                 extractor.advance()
             }
-
-            try { extractor.release() } catch (_: Exception) {}
         } catch (e: Exception) {
-            // Return what we have
+            e.printStackTrace()
+        } finally {
+            try { extractor?.release() } catch (_: Exception) {}
         }
         segments
     }
@@ -249,6 +272,8 @@ class AudioProcessor @Inject constructor(
         val waveform = mutableListOf<Float>()
         try {
             val segments = analyzeAudioSegments(videoUri, 100L)
+            if (segments.isEmpty()) return@withContext List(numSamples) { 0f }
+
             val samplesPerWaveformPoint = maxOf(1, segments.size / numSamples)
 
             for (i in 0 until numSamples) {
@@ -265,5 +290,26 @@ class AudioProcessor @Inject constructor(
             repeat(numSamples) { waveform.add(0f) }
         }
         waveform
+    }
+
+    /**
+     * Calculate audio energy distribution for finding peaks and valleys.
+     */
+    suspend fun getAudioEnergyPeaks(
+        videoUri: Uri,
+        threshold: Float = 0.3f
+    ): List<Pair<Long, Float>> = withContext(Dispatchers.IO) {
+        val peaks = mutableListOf<Pair<Long, Float>>()
+        try {
+            val segments = analyzeAudioSegments(videoUri, 200L)
+            var prevVolume = 0f
+            for ((index, segment) in segments.withIndex()) {
+                if (index > 0 && segment.volume > prevVolume && segment.volume > threshold) {
+                    peaks.add(segment.startTimeMs to segment.volume)
+                }
+                prevVolume = segment.volume
+            }
+        } catch (_: Exception) {}
+        peaks
     }
 }

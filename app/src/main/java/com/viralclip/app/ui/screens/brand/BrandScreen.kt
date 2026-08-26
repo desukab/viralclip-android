@@ -16,22 +16,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.viralclip.app.domain.model.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.viralclip.app.domain.model.BrandPreset
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
+import com.viralclip.app.ui.viewmodels.BrandViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BrandScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToEditor: (Long) -> Unit
+    onNavigateToEditor: (Long) -> Unit,
+    viewModel: BrandViewModel = hiltViewModel()
 ) {
-    val brandPresets = remember {
-        listOf(
-            BrandPreset(1, "My Brand", 0xFF7C3AED, 0xFFEC4899, 0xFF3B82F6, "default", null, false, null),
-            BrandPreset(2, "Tech Channel", 0xFF3B82F6, 0xFF06B6D4, 0xFF10B981, "default", null, false, null),
-            BrandPreset(3, "Gaming", 0xFFEF4444, 0xFFF97316, 0xFFFBBF24, "default", null, false, null)
-        )
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.seedDefaultPresets()
     }
 
     Scaffold(
@@ -50,22 +51,35 @@ fun BrandScreen(
             }
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Spacer(Modifier.height(8.dp))
-
-            brandPresets.forEach { preset ->
-                BrandPresetCard(
-                    preset = preset,
-                    onClick = { onNavigateToEditor(preset.id) }
-                )
+        if (uiState.isLoading) {
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = ViralPurple)
             }
+        } else if (uiState.presets.isEmpty()) {
+            EmptyState(
+                icon = Icons.Filled.Palette,
+                title = "No brand presets",
+                message = "Create your first brand preset to maintain consistent styling across videos",
+                modifier = Modifier.padding(padding)
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Spacer(Modifier.height(8.dp))
 
-            Spacer(Modifier.height(120.dp))
+                uiState.presets.forEach { preset ->
+                    BrandPresetCard(
+                        preset = preset,
+                        onClick = { onNavigateToEditor(preset.id) }
+                    )
+                }
+
+                Spacer(Modifier.height(120.dp))
+            }
         }
     }
 }
@@ -121,6 +135,11 @@ private fun BrandPresetCard(
                         )
                     }
                     Text("Colors", style = MaterialTheme.typography.labelSmall, color = TextTertiary, modifier = Modifier.padding(start = 4.dp))
+                }
+                if (preset.watermarkEnabled) {
+                    Spacer(Modifier.height(4.dp))
+                    Text("Watermark: ${preset.watermarkText ?: "Enabled"}",
+                        style = MaterialTheme.typography.labelSmall, color = ViralPurple)
                 }
             }
 

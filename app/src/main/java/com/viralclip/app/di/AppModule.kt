@@ -3,12 +3,7 @@ package com.viralclip.app.di
 import android.content.Context
 import androidx.room.Room
 import com.viralclip.app.data.database.ViralClipDatabase
-import com.viralclip.app.data.database.dao.ClipDao
-import com.viralclip.app.data.database.dao.ProjectDao
-import com.viralclip.app.data.database.dao.CaptionDao
-import com.viralclip.app.data.database.dao.TemplateDao
-import com.viralclip.app.data.database.dao.BrandPresetDao
-import com.viralclip.app.data.preferences.AppPreferences
+import com.viralclip.app.data.database.dao.*
 import com.viralclip.app.data.preferences.UserPreferencesManager
 import com.viralclip.app.data.repository.ClipRepositoryImpl
 import com.viralclip.app.data.repository.ProjectRepositoryImpl
@@ -20,13 +15,7 @@ import com.viralclip.app.domain.repository.ProjectRepository
 import com.viralclip.app.domain.repository.CaptionRepository
 import com.viralclip.app.domain.repository.TemplateRepository
 import com.viralclip.app.domain.repository.BrandPresetRepository
-import com.viralclip.app.core.video.FFmpegProcessor
-import com.viralclip.app.core.audio.AudioProcessor
-import com.viralclip.app.core.ai.ViralityScorer
-import com.viralclip.app.core.ai.CaptionGenerator
-import com.viralclip.app.core.ai.FaceTracker
-import com.viralclip.app.core.analysis.FrameAnalyzer
-import com.viralclip.app.services.VideoProcessingPipeline
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -62,45 +51,21 @@ object AppModule {
         return UserPreferencesManager(context)
     }
 
-    @Provides
-    @Singleton
-    fun provideFFmpegProcessor(@ApplicationContext context: Context): FFmpegProcessor {
-        return FFmpegProcessor(context)
-    }
+    // AI and processing classes use @Inject constructor + @Singleton,
+    // so Hilt can create them automatically. No @Provides needed.
+    // The following classes are self-providing:
+    // - FFmpegProcessor(@Inject constructor(context: Context))
+    // - AudioProcessor(@Inject constructor(context: Context))
+    // - ViralityScorer(@Inject constructor(context: Context))
+    // - CaptionGenerator(@Inject constructor(context, audioProcessor))
+    // - FaceTracker(@Inject constructor(context: Context))
+    // - FrameAnalyzer(@Inject constructor(context, ffmpegProcessor))
+    // - VideoProcessingPipeline(@Inject constructor(all above))
 
-    @Provides
-    @Singleton
-    fun provideAudioProcessor(@ApplicationContext context: Context): AudioProcessor {
-        return AudioProcessor(context)
-    }
-
-    @Provides
-    @Singleton
-    fun provideViralityScorer(@ApplicationContext context: Context): ViralityScorer {
-        return ViralityScorer(context)
-    }
-
-    @Provides
-    @Singleton
-    fun provideCaptionGenerator(@ApplicationContext context: Context): CaptionGenerator {
-        return CaptionGenerator(context)
-    }
-
-    @Provides
-    @Singleton
-    fun provideFaceTracker(@ApplicationContext context: Context): FaceTracker {
-        return FaceTracker(context)
-    }
-
-    @Provides
-    @Singleton
-    fun provideFrameAnalyzer(@ApplicationContext context: Context, ffmpegProcessor: FFmpegProcessor): FrameAnalyzer {
-        return FrameAnalyzer(context, ffmpegProcessor)
-    }
-
-    // Repositories
+    // Repositories — bind interfaces to implementations
     @Provides @Singleton
-    fun provideProjectRepository(projectDao: ProjectDao, clipDao: ClipDao): ProjectRepository = ProjectRepositoryImpl(projectDao, clipDao)
+    fun provideProjectRepository(projectDao: ProjectDao, clipDao: ClipDao): ProjectRepository =
+        ProjectRepositoryImpl(projectDao, clipDao)
 
     @Provides @Singleton
     fun provideClipRepository(dao: ClipDao): ClipRepository = ClipRepositoryImpl(dao)
@@ -112,21 +77,6 @@ object AppModule {
     fun provideTemplateRepository(dao: TemplateDao): TemplateRepository = TemplateRepositoryImpl(dao)
 
     @Provides @Singleton
-    fun provideBrandPresetRepository(dao: BrandPresetDao): BrandPresetRepository = BrandPresetRepositoryImpl(dao)
-
-    @Provides
-    @Singleton
-    fun provideVideoProcessingPipeline(
-        ffmpegProcessor: FFmpegProcessor,
-        audioProcessor: AudioProcessor,
-        viralityScorer: ViralityScorer,
-        captionGenerator: CaptionGenerator,
-        faceTracker: FaceTracker,
-        frameAnalyzer: FrameAnalyzer
-    ): VideoProcessingPipeline {
-        return VideoProcessingPipeline(
-            ffmpegProcessor, audioProcessor, viralityScorer,
-            captionGenerator, faceTracker, frameAnalyzer
-        )
-    }
+    fun provideBrandPresetRepository(dao: BrandPresetDao): BrandPresetRepository =
+        BrandPresetRepositoryImpl(dao)
 }

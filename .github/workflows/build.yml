@@ -1,7 +1,9 @@
-name: Build APK
+name: Build & Test
 
 on:
   push:
+    branches: [ main, master ]
+  pull_request:
     branches: [ main, master ]
   workflow_dispatch:
 
@@ -22,29 +24,43 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Generate Keystore
-        run: |
-          keytool -genkeypair -v \
-            -keystore viralclip-release.jks \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -alias viralclip \
-            -storepass viralclip123 \
-            -keypass viralclip123 \
-            -dname "CN=ViralClip, OU=Dev, O=ViralClip, L=Unknown, ST=Unknown, C=US"
-          echo "KEYSTORE_PATH=${{ github.workspace }}/viralclip-release.jks" >> $GITHUB_ENV
-          echo "KEYSTORE_PASSWORD=viralclip123" >> $GITHUB_ENV
-          echo "KEY_ALIAS=viralclip" >> $GITHUB_ENV
-          echo "KEY_PASSWORD=viralclip123" >> $GITHUB_ENV
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Release APK
+      - name: Run Lint
+        run: ./gradlew lintDebug --no-daemon
+        continue-on-error: true
+
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Build Release APK (unsigned)
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Upload Release APK artifact
+      - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: ViralClip.apk
-          path: app/build/outputs/apk/release/app-release.apk
-          retention-days: 30
+          name: ViralClip-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
+
+      - name: Upload Lint Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
+          retention-days: 7

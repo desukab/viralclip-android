@@ -12,6 +12,8 @@ import com.viralclip.app.util.Extensions.getExportDirectory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.io.File
 import javax.inject.Inject
 
@@ -44,16 +46,17 @@ class ExportViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ExportUiState())
     val uiState: StateFlow<ExportUiState> = _uiState.asStateFlow()
 
+    /**
+     * Load clip and its project using sequential collectors.
+     * Fixed: No longer uses nested Flow collection which caused leaks.
+     */
     fun loadClip(clipId: Long) {
         viewModelScope.launch {
-            clipRepository.getClipById(clipId).collect { clip ->
-                clip?.let {
-                    _uiState.update { state -> state.copy(clip = it) }
-                    // Load project
-                    projectRepository.getProjectById(it.projectId).collect { project ->
-                        _uiState.update { state -> state.copy(project = project) }
-                    }
-                }
+            clipRepository.getClipById(clipId).first()?.let { clip ->
+                _uiState.update { state -> state.copy(clip = clip) }
+                // Load project sequentially after clip loads
+                val project = projectRepository.getProjectById(clip.projectId).first()
+                _uiState.update { state -> state.copy(project = project) }
             }
         }
     }
@@ -93,25 +96,67 @@ class ExportViewModel @Inject constructor(
 
                 val sourceUri = Uri.parse(clip.sourceVideoUri)
 
-                ffmpegProcessor.exportVideo(
+                // First trim to clip boundaries, then export with target dimensions
+                val trimmedFile = File(context.cacheDir, "trim_${clip.id}.mp4")
+                val trimSuccess = ffmpegProcessor.trimVideo(
                     inputUri = sourceUri,
+                    startTimeMs = clip.startTimeMs,
+                    endTimeMs = clip.endTimeMs,
+                    outputFile = trimmedFile,
+                    onProgress = { progress ->
+                        _uiState.update { it.copy(exportProgress = progress * 0.3f) }
+                    }
+                )
+
+                if (!trimSuccess) {
+                    throw Exception("Failed to trim video")
+                }
+
+                // Apply speed change if not 1x
+                val speedFile = if (clip.speed != 1.0f) {
+                    File(context.cacheDir, "speed_${clip.id}.mp4").also { file ->
+                        val success = ffmpegProcessor.changeSpeed(
+                            inputUri = Uri.fromFile(trimmedFile),
+                            speed = clip.speed,
+                            outputFile = file,
+                            onProgress = { progress ->
+                                _uiState.update { it.copy(exportProgress = 0.3f + progress * 0.3f) }
+                            }
+                        )
+                        if (!success) throw Exception("Failed to apply speed change")
+                    }
+                } else null
+
+                val preExportFile = speedFile ?: trimmedFile
+
+                // Final export with target resolution
+                val success = ffmpegProcessor.exportVideo(
+                    inputUri = Uri.fromFile(preExportFile),
                     outputPath = outputFile.absolutePath,
                     width = state.exportWidth,
                     height = state.exportHeight,
                     bitrate = state.exportBitrate,
                     fps = state.selectedFps,
                     onProgress = { progress ->
-                        _uiState.update { it.copy(exportProgress = progress) }
+                        _uiState.update { it.copy(exportProgress = 0.6f + progress * 0.4f) }
                     }
                 )
 
-                _uiState.update {
-                    it.copy(
-                        isExporting = false,
-                        exportProgress = 1f,
-                        exportComplete = true,
-                        exportPath = outputFile.absolutePath
-                    )
+                // Cleanup temp files
+                trimmedFile.delete()
+                speedFile?.delete()
+
+                if (success) {
+                    _uiState.update {
+                        it.copy(
+                            isExporting = false,
+                            exportProgress = 1f,
+                            exportComplete = true,
+                            exportPath = outputFile.absolutePath
+                        )
+                    }
+                } else {
+                    throw Exception("Export encoding failed")
                 }
             } catch (e: Exception) {
                 _uiState.update {

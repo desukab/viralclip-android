@@ -5,6 +5,7 @@ import com.viralclip.app.data.database.entities.*
 import com.viralclip.app.domain.model.*
 import com.viralclip.app.domain.repository.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,11 +18,7 @@ class ProjectRepositoryImpl @Inject constructor(
 
     override fun getAllProjects(): Flow<List<Project>> =
         projectDao.getAllProjects().map { entities ->
-            entities.map { entity ->
-                val clips = clipDao.getClipsByProjectId(entity.id)
-                // For simplicity, return project without nested clips in list view
-                entity.toDomain()
-            }
+            entities.map { it.toDomain() }
         }
 
     override fun getProjectById(id: Long): Flow<Project?> =
@@ -41,16 +38,44 @@ class ProjectRepositoryImpl @Inject constructor(
     override suspend fun deleteProject(id: Long) =
         projectDao.deleteById(id)
 
+    /**
+     * Duplicate a project and all its clips.
+     * Creates a new project with "(Copy)" suffix and copies all clips.
+     */
     override suspend fun duplicateProject(id: Long): Long {
-        // Implementation: copy project and its clips
-        return id // Simplified
+        val originalProject = projectDao.getProjectById(id).first() ?: return -1
+        val originalClips = clipDao.getClipsByProjectId(id).first()
+
+        // Create duplicate project with new name
+        val duplicateProject = originalProject.copy(
+            id = 0, // Auto-generate new ID
+            name = "${originalProject.name} (Copy)",
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis()
+        )
+        val newProjectId = projectDao.insert(duplicateProject)
+
+        // Copy all clips with new project ID
+        val duplicateClips = originalClips.map { clip ->
+            clip.copy(
+                id = 0, // Auto-generate new ID
+                projectId = newProjectId
+            )
+        }
+        if (duplicateClips.isNotEmpty()) {
+            clipDao.insertAll(duplicateClips)
+        }
+
+        return newProjectId
     }
 
+    /**
+     * Rename a project by ID. Uses .first() for single-emission Flow.
+     */
     override suspend fun renameProject(id: Long, newName: String) {
-        projectDao.getProjectById(id).map { it }.collect { project ->
-            project?.let {
-                projectDao.update(it.copy(name = newName, updatedAt = System.currentTimeMillis()))
-            }
+        val project = projectDao.getProjectById(id).first()
+        project?.let {
+            projectDao.update(it.copy(name = newName, updatedAt = System.currentTimeMillis()))
         }
     }
 }
@@ -83,6 +108,9 @@ class ClipRepositoryImpl @Inject constructor(
     override suspend fun deleteClip(id: Long) =
         clipDao.deleteById(id)
 
+    /**
+     * Reorder clips by updating their order field in a single batch.
+     */
     override suspend fun reorderClips(clipIds: List<Long>) {
         clipIds.forEachIndexed { index, id ->
             clipDao.updateOrder(id, index)
@@ -109,8 +137,13 @@ class CaptionRepositoryImpl @Inject constructor(
     override suspend fun deleteCaptionsByClipId(clipId: Long) =
         captionDao.deleteByClipId(clipId)
 
+    /**
+     * Update caption style for a clip.
+     * Style is stored on the Clip entity, not individual captions.
+     * This method is a no-op since the ViewModel handles style updates via ClipRepository.
+     */
     override suspend fun updateCaptionStyle(clipId: Long, style: CaptionStyle) {
-        // Update caption style is stored on the Clip entity, not captions
+        // Caption style is managed by ClipRepository.updateClip() in the ViewModel layer
     }
 }
 

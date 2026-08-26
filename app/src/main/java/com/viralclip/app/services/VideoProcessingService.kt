@@ -6,7 +6,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.viralclip.app.MainActivity
@@ -20,7 +19,7 @@ import javax.inject.Inject
 
 /**
  * Foreground service for processing videos in the background.
- * Keeps the processing alive even when the app is in background.
+ * Always calls startForeground() before any processing to prevent ANR/crash.
  */
 @AndroidEntryPoint
 class VideoProcessingService : Service() {
@@ -33,15 +32,28 @@ class VideoProcessingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Always start foreground FIRST to prevent ANR on Android 12+
         when (intent?.action) {
             ACTION_PROCESS -> {
-                val videoUriString = intent.getStringExtra(EXTRA_VIDEO_URI) ?: return START_NOT_STICKY
-                val videoUri = Uri.parse(videoUriString)
+                val videoUriString = intent.getStringExtra(EXTRA_VIDEO_URI)
+                if (videoUriString == null) {
+                    // No URI — still need to show foreground notification before stopping
+                    startForeground(NOTIFICATION_ID, createNotification("Error: No video specified"))
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+                // Start foreground BEFORE any processing
                 startForeground(NOTIFICATION_ID, createNotification("Preparing…"))
-                startProcessing(videoUri)
+                startProcessing(Uri.parse(videoUriString))
             }
             ACTION_CANCEL -> {
                 processingJob?.cancel()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+            else -> {
+                startForeground(NOTIFICATION_ID, createNotification("Processing…"))
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -53,7 +65,7 @@ class VideoProcessingService : Service() {
         processingJob = serviceScope.launch {
             try {
                 // Observe pipeline state for notification updates
-                launch {
+                val stateJob = launch {
                     pipeline.state.collectLatest { state ->
                         val (title, progress) = when (state) {
                             is ProcessingState.Analyzing -> state.message to (state.progress * 100).toInt()
@@ -74,6 +86,9 @@ class VideoProcessingService : Service() {
                 // Run the pipeline
                 val result = pipeline.processVideo(videoUri, this@VideoProcessingService)
 
+                // Cancel state observer
+                stateJob.cancel()
+
                 // Send broadcast with results
                 sendBroadcast(Intent(ACTION_PROCESSING_COMPLETE).apply {
                     putExtra(EXTRA_RESULT_CLIPS_COUNT, result.generatedClips.size)
@@ -81,13 +96,13 @@ class VideoProcessingService : Service() {
                 })
 
             } catch (e: CancellationException) {
-                // Processing cancelled
+                // Processing cancelled by user
             } catch (e: Exception) {
                 sendBroadcast(Intent(ACTION_PROCESSING_ERROR).apply {
                     putExtra(EXTRA_ERROR_MESSAGE, e.message ?: "Unknown error")
                 })
             } finally {
-                delay(1000) // Brief delay before stopping
+                delay(500)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }

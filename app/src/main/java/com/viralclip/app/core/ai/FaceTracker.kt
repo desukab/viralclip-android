@@ -59,6 +59,8 @@ class FaceTracker @Inject constructor(
 
     /**
      * Track faces across video frames for smart reframing.
+     * Accepts pre-scaled frames (360px wide) to minimize memory usage.
+     * Does NOT create additional bitmap copies — ML Kit handles the input bitmap.
      */
     suspend fun trackFaces(
         frames: List<Pair<Long, Bitmap>>,
@@ -73,10 +75,12 @@ class FaceTracker @Inject constructor(
             val (timestampMs, bitmap) = pair
 
             try {
-                // Create a copy to avoid recycled bitmap issues with ML Kit
-                val copy = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height)
+                // Validate bitmap before passing to ML Kit
+                if (bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) continue
 
-                val faces = detectFaces(copy)
+                // ML Kit handles bitmap internally — no need to copy.
+                // The input bitmap is already downscaled by extractFrames().
+                val faces = detectFaces(bitmap)
                 allFaces.addAll(faces)
 
                 val mainFace = selectMainFace(faces)
@@ -93,7 +97,7 @@ class FaceTracker @Inject constructor(
                     )
                 )
             } catch (_: Exception) {
-                // Bitmap may already be recycled or invalid, skip this frame
+                // Bitmap may be recycled or ML Kit error — skip this frame
             }
             _progress.value = (index + 1).toFloat() / frames.size
         }
@@ -106,7 +110,6 @@ class FaceTracker @Inject constructor(
             allFaces.map { it.width * it.height }.average().toFloat()
         } else 0f
 
-        // Determine dominant speaker (face that appears most frequently)
         val dominantSpeaker = findDominantSpeaker(allFaces)
 
         _progress.value = 1f
@@ -121,10 +124,13 @@ class FaceTracker @Inject constructor(
 
     /**
      * Detect faces in a single bitmap using ML Kit.
+     * Input bitmap should already be downscaled for efficiency.
      */
     suspend fun detectFaces(bitmap: Bitmap): List<FacePosition> = withContext(Dispatchers.Default) {
         try {
-            if (bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) return@withContext emptyList()
+            if (bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) {
+                return@withContext emptyList()
+            }
             val image = InputImage.fromBitmap(bitmap, 0)
             val faces = detector.process(image).await()
             faces.map { face ->
@@ -137,7 +143,7 @@ class FaceTracker @Inject constructor(
                     confidence = 0.95f
                 )
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
     }
@@ -153,16 +159,15 @@ class FaceTracker @Inject constructor(
         targetAspect: Float = 9f / 16f
     ): Pair<Float, Float> {
         if (faces.isEmpty()) {
-            // Center of frame when no face detected
             return Pair(0.5f, 0.5f)
         }
 
-        // Use weighted average of face positions
         val totalConfidence = faces.sumOf { it.confidence.toDouble() }.toFloat()
+        if (totalConfidence <= 0f) return Pair(0.5f, 0.5f)
+
         val weightedX = faces.sumOf { (it.centerX * it.confidence).toDouble() }.toFloat() / totalConfidence
         val weightedY = faces.sumOf { (it.centerY * it.confidence).toDouble() }.toFloat() / totalConfidence
 
-        // Ensure crop doesn't go out of bounds
         val cropWidth = targetAspect * sourceHeight.toFloat() / sourceWidth
         val maxCropX = 1f - cropWidth / 2
         val cropX = weightedX.coerceIn(cropWidth / 2, maxCropX)
@@ -173,7 +178,6 @@ class FaceTracker @Inject constructor(
 
     private fun selectMainFace(faces: List<FacePosition>): FacePosition? {
         if (faces.isEmpty()) return null
-        // Select face closest to center, weighted by size
         return faces.maxByOrNull { face ->
             val centerDist = Math.sqrt(
                 ((face.centerX - 0.5) * (face.centerX - 0.5) +
@@ -191,10 +195,8 @@ class FaceTracker @Inject constructor(
         targetHeight: Int
     ): RefocusPoint {
         val face = mainFace ?: return RefocusPoint(0.5f, 0.4f)
-
-        // Position face in upper third of vertical frame
-        val targetY = 0.35f // Face center at 35% from top
-        val offsetX = (face.centerX - 0.5f) * 0.5f // Reduce horizontal offset
+        val targetY = 0.35f
+        val offsetX = (face.centerX - 0.5f) * 0.5f
 
         return RefocusPoint(
             x = (face.centerX + offsetX).coerceIn(0.2f, 0.8f),
@@ -204,14 +206,12 @@ class FaceTracker @Inject constructor(
 
     private fun findDominantSpeaker(faces: List<FacePosition>): FacePosition? {
         if (faces.isEmpty()) return null
-        // Simple heuristic: most common face position = dominant speaker
-        // In production, would use face embedding similarity
         return faces.groupBy {
             Pair((it.centerX * 10).toInt(), (it.centerY * 10).toInt())
         }.maxByOrNull { it.value.size }?.value?.first()
     }
 
     fun close() {
-        detector.close()
+        try { detector.close() } catch (_: Exception) {}
     }
 }

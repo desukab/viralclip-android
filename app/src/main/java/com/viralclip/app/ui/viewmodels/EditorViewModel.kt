@@ -1,6 +1,5 @@
 package com.viralclip.app.ui.viewmodels
 
-import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -59,7 +58,7 @@ class EditorViewModel @Inject constructor(
     }
 
     fun selectClip(index: Int) {
-        _uiState.update { it.copy(selectedClipIndex = index.coerceIn(0, it.clips.lastIndex)) }
+        _uiState.update { it.copy(selectedClipIndex = index.coerceIn(0, it.clips.lastIndex.coerceAtLeast(0))) }
     }
 
     fun selectTool(tool: EditorTool) {
@@ -181,27 +180,65 @@ class EditorViewModel @Inject constructor(
         viewModelScope.launch {
             when (action) {
                 is EditorAction.TrimClip -> {
-                    clipRepository.updateClip(
-                        state.selectedClip?.copy(
-                            startTimeMs = action.oldStart,
-                            endTimeMs = action.oldEnd
-                        ) ?: return@launch
-                    )
+                    val clip = state.clips.find { it.id == action.clipId }
+                    clip?.let {
+                        clipRepository.updateClip(
+                            it.copy(startTimeMs = action.oldStart, endTimeMs = action.oldEnd)
+                        )
+                    }
                 }
                 is EditorAction.ChangeSpeed -> {
-                    clipRepository.updateClip(
-                        state.selectedClip?.copy(speed = action.oldSpeed) ?: return@launch
-                    )
+                    val clip = state.clips.find { it.id == action.clipId }
+                    clip?.let {
+                        clipRepository.updateClip(it.copy(speed = action.oldSpeed))
+                    }
                 }
                 is EditorAction.UpdateCaptionStyle -> {
-                    clipRepository.updateClip(
-                        state.selectedClip?.copy(captionStyle = action.oldStyle) ?: return@launch
-                    )
+                    val clip = state.clips.find { it.id == action.clipId }
+                    clip?.let {
+                        clipRepository.updateClip(it.copy(captionStyle = action.oldStyle))
+                    }
                 }
                 is EditorAction.UpdateFilter -> {
-                    clipRepository.updateClip(
-                        state.selectedClip?.copy(filters = action.oldFilters) ?: return@launch
-                    )
+                    val clip = state.clips.find { it.id == action.clipId }
+                    clip?.let {
+                        clipRepository.updateClip(it.copy(filters = action.oldFilters))
+                    }
+                }
+                is EditorAction.DeleteClip -> {
+                    // Re-insert the deleted clip at its original position
+                    clipRepository.insertClip(action.clip.copy(order = action.position))
+                }
+                is EditorAction.SplitClip -> {
+                    // Find both split clips and merge them back
+                    val currentClips = state.clips.sortedBy { it.order }
+                    val splitIndex = currentClips.indexOfFirst {
+                        it.startTimeMs == action.splitPositionMs || it.name.contains("(2)")
+                    }
+                    if (splitIndex > 0) {
+                        val secondClip = currentClips.getOrNull(splitIndex)
+                        val firstClip = currentClips.getOrNull(splitIndex - 1)
+                        if (firstClip != null && secondClip != null) {
+                            clipRepository.deleteClip(firstClip.id)
+                            clipRepository.deleteClip(secondClip.id)
+                            // Re-insert original merged clip
+                            clipRepository.insertClip(
+                                firstClip.copy(
+                                    id = 0,
+                                    endTimeMs = secondClip.endTimeMs,
+                                    name = firstClip.name.removeSuffix(" (1)")
+                                )
+                            )
+                        }
+                    }
+                }
+                is EditorAction.ReorderClips -> {
+                    // Restore original order
+                    val clipsToReorder = state.clips.map { clip ->
+                        val originalIndex = action.oldOrder.indexOf(clip.id)
+                        clip.copy(order = if (originalIndex >= 0) originalIndex else clip.order)
+                    }
+                    clipRepository.updateClips(clipsToReorder)
                 }
                 else -> {}
             }
@@ -220,17 +257,52 @@ class EditorViewModel @Inject constructor(
         viewModelScope.launch {
             when (action) {
                 is EditorAction.TrimClip -> {
-                    clipRepository.updateClip(
-                        state.selectedClip?.copy(
-                            startTimeMs = action.newStart,
-                            endTimeMs = action.newEnd
-                        ) ?: return@launch
-                    )
+                    val clip = state.clips.find { it.id == action.clipId }
+                    clip?.let {
+                        clipRepository.updateClip(
+                            it.copy(startTimeMs = action.newStart, endTimeMs = action.newEnd)
+                        )
+                    }
                 }
                 is EditorAction.ChangeSpeed -> {
-                    clipRepository.updateClip(
-                        state.selectedClip?.copy(speed = action.newSpeed) ?: return@launch
-                    )
+                    val clip = state.clips.find { it.id == action.clipId }
+                    clip?.let {
+                        clipRepository.updateClip(it.copy(speed = action.newSpeed))
+                    }
+                }
+                is EditorAction.UpdateCaptionStyle -> {
+                    val clip = state.clips.find { it.id == action.clipId }
+                    clip?.let {
+                        clipRepository.updateClip(it.copy(captionStyle = action.newStyle))
+                    }
+                }
+                is EditorAction.UpdateFilter -> {
+                    val clip = state.clips.find { it.id == action.clipId }
+                    clip?.let {
+                        clipRepository.updateClip(it.copy(filters = action.newFilters))
+                    }
+                }
+                is EditorAction.DeleteClip -> {
+                    clipRepository.deleteClip(action.clip.id)
+                }
+                is EditorAction.SplitClip -> {
+                    // Re-split at the same position
+                    val clip = state.clips.find { it.startTimeMs <= action.splitPositionMs &&
+                            it.endTimeMs > action.splitPositionMs }
+                    clip?.let {
+                        val firstClip = it.copy(name = "${it.name} (1)", endTimeMs = action.splitPositionMs)
+                        val secondClip = it.copy(id = 0, name = "${it.name} (2)", startTimeMs = action.splitPositionMs, order = it.order + 1)
+                        clipRepository.deleteClip(it.id)
+                        clipRepository.insertClip(firstClip)
+                        clipRepository.insertClip(secondClip)
+                    }
+                }
+                is EditorAction.ReorderClips -> {
+                    val clipsToReorder = state.clips.map { clip ->
+                        val newIndex = action.newOrder.indexOf(clip.id)
+                        clip.copy(order = if (newIndex >= 0) newIndex else clip.order)
+                    }
+                    clipRepository.updateClips(clipsToReorder)
                 }
                 else -> {}
             }

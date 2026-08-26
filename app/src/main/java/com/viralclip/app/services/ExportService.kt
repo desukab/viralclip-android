@@ -20,6 +20,7 @@ import javax.inject.Inject
 
 /**
  * Foreground service for exporting videos with all edits applied.
+ * Always calls startForeground() before any processing to prevent ANR/crash.
  */
 @AndroidEntryPoint
 class ExportService : Service() {
@@ -32,20 +33,36 @@ class ExportService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Always show foreground notification first to prevent ANR on Android 12+
         when (intent?.action) {
             ACTION_EXPORT -> {
                 val clipId = intent.getLongExtra(EXTRA_CLIP_ID, 0)
-                val sourceUri = intent.getStringExtra(EXTRA_SOURCE_URI) ?: return START_NOT_STICKY
-                val outputPath = intent.getStringExtra(EXTRA_OUTPUT_PATH) ?: return START_NOT_STICKY
+                val sourceUri = intent.getStringExtra(EXTRA_SOURCE_URI)
+                val outputPath = intent.getStringExtra(EXTRA_OUTPUT_PATH)
+
+                if (sourceUri == null || outputPath == null) {
+                    sendErrorBroadcast("Missing export parameters")
+                    stopSelf()
+                    return START_NOT_STICKY
+                }
+
                 val width = intent.getIntExtra(EXTRA_WIDTH, 1080)
                 val height = intent.getIntExtra(EXTRA_HEIGHT, 1920)
                 val fps = intent.getIntExtra(EXTRA_FPS, 30)
                 val bitrate = intent.getIntExtra(EXTRA_BITRATE, 8_000_000)
-                startForeground(NOTIFICATION_ID, createNotification("Exporting…"))
+
+                // Start foreground BEFORE any processing
+                startForeground(NOTIFICATION_ID, createNotification("Preparing export…"))
                 startExport(Uri.parse(sourceUri), outputPath, width, height, fps, bitrate, clipId)
             }
             ACTION_CANCEL -> {
                 exportJob?.cancel()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+            else -> {
+                // Unknown action — start foreground and stop
+                startForeground(NOTIFICATION_ID, createNotification("Processing…"))
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
@@ -84,22 +101,24 @@ class ExportService : Service() {
                         putExtra(EXTRA_CLIP_ID, clipId)
                     })
                 } else {
-                    sendBroadcast(Intent(ACTION_EXPORT_ERROR).apply {
-                        putExtra(EXTRA_ERROR_MESSAGE, "Export failed")
-                    })
+                    sendErrorBroadcast("Export encoding failed")
                 }
             } catch (e: CancellationException) {
-                // Cancelled
+                // Export cancelled by user
             } catch (e: Exception) {
-                sendBroadcast(Intent(ACTION_EXPORT_ERROR).apply {
-                    putExtra(EXTRA_ERROR_MESSAGE, e.message ?: "Export failed")
-                })
+                sendErrorBroadcast(e.message ?: "Export failed")
             } finally {
-                delay(1000)
+                delay(500)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
         }
+    }
+
+    private fun sendErrorBroadcast(message: String) {
+        sendBroadcast(Intent(ACTION_EXPORT_ERROR).apply {
+            putExtra(EXTRA_ERROR_MESSAGE, message)
+        })
     }
 
     private fun createNotification(text: String): Notification {
@@ -108,12 +127,22 @@ class ExportService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE
         )
+        val cancelIntent = PendingIntent.getService(
+            this, 0,
+            Intent(this, ExportService::class.java).apply {
+                action = ACTION_CANCEL
+            },
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(this, ViralClipApp.CHANNEL_EXPORT)
             .setContentTitle("ViralClip Export")
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
+            .addAction(R.drawable.ic_cancel, "Cancel", cancelIntent)
             .setOngoing(true)
+            .setProgress(100, 0, true)
             .build()
     }
 
@@ -123,11 +152,19 @@ class ExportService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE
         )
+        val cancelIntent = PendingIntent.getService(
+            this, 0,
+            Intent(this, ExportService::class.java).apply {
+                action = ACTION_CANCEL
+            },
+            PendingIntent.FLAG_IMMUTABLE
+        )
         val notification = NotificationCompat.Builder(this, ViralClipApp.CHANNEL_EXPORT)
             .setContentTitle("ViralClip Export")
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(pendingIntent)
+            .addAction(R.drawable.ic_cancel, "Cancel", cancelIntent)
             .setOngoing(true)
             .setProgress(100, progress.coerceIn(0, 100), false)
             .build()

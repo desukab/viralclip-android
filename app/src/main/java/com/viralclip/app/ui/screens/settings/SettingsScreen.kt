@@ -15,18 +15,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
+import com.viralclip.app.ui.viewmodels.SettingsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    var darkMode by remember { mutableStateOf(true) }
-    var gpuAcceleration by remember { mutableStateOf(true) }
-    var autoSave by remember { mutableStateOf(true) }
-    var hapticFeedback by remember { mutableStateOf(true) }
+    val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = { GradientTopBar("Settings", onBack = onNavigateBack) },
@@ -40,32 +40,51 @@ fun SettingsScreen(
         ) {
             // General
             SettingsSection("General") {
-                ToggleSettingRow("Dark Mode", "Use dark theme", darkMode, { darkMode = it })
+                ToggleSettingRow(
+                    "Dark Mode", "Use dark theme",
+                    uiState.darkMode, { viewModel.updateDarkMode(it) }
+                )
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                ToggleSettingRow("Haptic Feedback", "Vibration on interactions", hapticFeedback, { hapticFeedback = it })
+                ToggleSettingRow(
+                    "Haptic Feedback", "Vibration on interactions",
+                    uiState.hapticFeedback, { viewModel.updateHapticFeedback(it) }
+                )
             }
 
             // Processing
             SettingsSection("Processing") {
-                ToggleSettingRow("GPU Acceleration", "Use GPU for faster processing", gpuAcceleration, { gpuAcceleration = it })
+                ToggleSettingRow(
+                    "GPU Acceleration", "Use GPU for faster processing",
+                    uiState.gpuAcceleration, { viewModel.updateGpuAcceleration(it) }
+                )
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                ToggleSettingRow("Auto-Save", "Save changes automatically", autoSave, { autoSave = it })
+                ToggleSettingRow(
+                    "Auto-Save", "Save changes automatically",
+                    uiState.autoSave, { viewModel.updateAutoSave(it) }
+                )
             }
 
             // Export Defaults
             SettingsSection("Export Defaults") {
-                SettingsItem("Default Platform", "TikTok", Icons.Filled.Devices)
+                SettingsItem("Default Platform", uiState.defaultPlatform, Icons.Filled.Devices)
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Default Quality", "High (1080p)", Icons.Filled.HighQuality)
+                SettingsItem("Default Quality", uiState.defaultQuality, Icons.Filled.HighQuality)
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Default FPS", "30 fps", Icons.Filled.Speed)
+                SettingsItem("Default FPS", "${uiState.defaultFps} fps", Icons.Filled.Speed)
             }
 
             // Storage
             SettingsSection("Storage") {
-                SettingsItem("Cache Size", "128 MB", Icons.Filled.Storage)
+                SettingsItem("Cache Size", "${uiState.cacheSizeMb} MB", Icons.Filled.Storage)
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Clear Cache", "", Icons.Filled.DeleteSweep, onClick = {})
+                SettingsItem("Clear Cache", "", Icons.Filled.DeleteSweep, onClick = { viewModel.clearCache() })
+            }
+
+            // Stats
+            SettingsSection("Stats") {
+                SettingsItem("Videos Processed", "${uiState.totalProcessedVideos}", Icons.Filled.VideoLibrary)
+                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                SettingsItem("Clips Exported", "${uiState.totalExportedClips}", Icons.Filled.FileDownload)
             }
 
             // About
@@ -75,10 +94,6 @@ fun SettingsScreen(
                 SettingsItem("Rate Us", "Love ViralClip? Rate us!", Icons.Filled.Star, onClick = {})
                 Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem("Send Feedback", "Help us improve", Icons.Filled.Feedback, onClick = {})
-                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Privacy Policy", "", Icons.Filled.PrivacyTip, onClick = {})
-                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsItem("Terms of Service", "", Icons.Filled.Gavel, onClick = {})
             }
 
             Spacer(Modifier.height(40.dp))
@@ -140,5 +155,35 @@ private fun SettingsItem(
         } else {
             Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
         }
+    }
+}
+
+@Composable
+private fun ToggleSettingRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextTertiary)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = ViralPurple,
+                checkedTrackColor = ViralPurple.copy(alpha = 0.3f),
+                uncheckedThumbColor = TextTertiary,
+                uncheckedTrackColor = DarkBorder
+            )
+        )
     }
 }

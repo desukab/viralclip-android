@@ -14,13 +14,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Main video processing pipeline that orchestrates all AI analysis stages.
  * Flow: Import → Extract Frames → Analyze Audio → Detect Faces → Score Virality → Generate Captions
+ *
+ * Uses adaptive timeout based on video duration.
  */
 @Singleton
 class VideoProcessingPipeline @Inject constructor(
@@ -46,48 +47,55 @@ class VideoProcessingPipeline @Inject constructor(
 
     /**
      * Run the full processing pipeline on a video.
+     * Timeout scales with video duration: base 60s + 2s per 10s of video.
      */
     suspend fun processVideo(
         videoUri: Uri,
         context: Context,
         maxClips: Int = 8
     ): PipelineResult = withContext(Dispatchers.Default) {
-        val result = withTimeoutOrNull(30_000L) { // 30 second timeout for entire pipeline
-            _state.value = ProcessingState.Analyzing(0f, "Loading video…")
+        // Stage 1: Get video metadata (fast, no timeout needed)
+        _state.value = ProcessingState.Analyzing(0f, "Loading video…")
+        val videoInfo = ffmpegProcessor.getVideoInfo(videoUri)
 
-            // Stage 1: Get video metadata
-            val videoInfo = ffmpegProcessor.getVideoInfo(videoUri)
-            _state.value = ProcessingState.Analyzing(0.1f, "Analyzing video…")
+        // Adaptive timeout: 60s base + 2s per 10s of video, capped at 5 minutes
+        val timeoutMs = (60_000L + (videoInfo.durationMs / 10_000L) * 2_000L)
+            .coerceIn(60_000L, 300_000L)
 
-            // Stage 2: Extract frames at 1fps for analysis
-            val frames = ffmpegProcessor.extractFrames(videoUri, intervalMs = 2000L)
-            _state.value = ProcessingState.Analyzing(0.2f, "Extracted ${frames.size} frames")
+        val result = withTimeoutOrNull(timeoutMs) {
+            _state.value = ProcessingState.Analyzing(0.05f, "Analyzing video…")
+
+            // Stage 2: Extract frames at 2s intervals, downscaled to 360px
+            val frames = ffmpegProcessor.extractFrames(
+                videoUri, intervalMs = 2000L, maxFrames = 30, targetWidth = 360
+            )
+            _state.value = ProcessingState.Analyzing(0.15f, "Extracted ${frames.size} frames")
 
             // Stage 3: Analyze audio
-            _state.value = ProcessingState.Transcribing(0.3f)
+            _state.value = ProcessingState.Transcribing(0.25f)
             val audioInfo = audioProcessor.getAudioInfo(videoUri)
             val audioSegments = audioProcessor.analyzeAudioSegments(videoUri)
 
             // Stage 4: Detect and track faces
-            _state.value = ProcessingState.DetectingFaces(0.4f)
+            _state.value = ProcessingState.DetectingFaces(0.40f)
             val faceResult = faceTracker.trackFaces(frames)
 
             // Stage 5: Analyze frames
-            _state.value = ProcessingState.Analyzing(0.5f, "Analyzing frames…")
+            _state.value = ProcessingState.Analyzing(0.55f, "Analyzing frames…")
             val frameAnalyses = frameAnalyzer.analyzeFrames(frames)
 
             // Stage 6: Score virality and find best clips
-            _state.value = ProcessingState.ScoringVirality(0.6f)
+            _state.value = ProcessingState.ScoringVirality(0.65f)
             val viralityResult = viralityScorer.analyzeAndScore(
                 videoUri, videoInfo.durationMs, audioSegments, frames
             )
 
             // Stage 7: Generate captions for top clips
-            _state.value = ProcessingState.GeneratingClips(0.8f)
+            _state.value = ProcessingState.GeneratingClips(0.80f)
             val transcription = captionGenerator.generateCaptions(videoUri)
 
             // Stage 8: Assemble final clips
-            _state.value = ProcessingState.GeneratingClips(0.9f)
+            _state.value = ProcessingState.GeneratingClips(0.90f)
             val generatedClips = assembleClips(
                 videoUri, viralityResult, transcription, faceResult
             )
@@ -107,11 +115,12 @@ class VideoProcessingPipeline @Inject constructor(
             _state.value = ProcessingState.Complete
             result
         } else {
-            // Timed out — return minimal result
-            _state.value = ProcessingState.Error("Processing timed out. Try a shorter video.")
+            _state.value = ProcessingState.Error(
+                "Processing timed out. Try a shorter video or lower resolution."
+            )
             PipelineResult(
-                videoInfo = FFmpegProcessor.VideoInfo(0, 0, 0, 0, 30f, true, 0),
-                audioInfo = AudioProcessor.AudioInfo(44100, 1, 128000, 0, "aac"),
+                videoInfo = videoInfo,
+                audioInfo = AudioProcessor.AudioInfo(44100, 1, 128000, videoInfo.durationMs, "aac"),
                 viralityResult = ViralityScorer.ScoringResult(
                     clips = emptyList(),
                     overallVideoScore = 0f,
@@ -121,7 +130,7 @@ class VideoProcessingPipeline @Inject constructor(
                     segments = emptyList(),
                     language = "en",
                     totalWords = 0,
-                    durationMs = 0L
+                    durationMs = videoInfo.durationMs
                 ),
                 faceTrackResult = FaceTracker.FaceTrackResult(
                     frames = emptyList(),
@@ -147,14 +156,19 @@ class VideoProcessingPipeline @Inject constructor(
         return scoringResult.clips.mapIndexed { index, scoredClip ->
             // Filter captions for this clip's time range
             val clipCaptions = transcription.segments.filter { caption ->
-                caption.startTimeMs >= scoredClip.startTimeMs &&
-                caption.endTimeMs <= scoredClip.endTimeMs
+                caption.startTimeMs <= scoredClip.endTimeMs &&
+                caption.endTimeMs >= scoredClip.startTimeMs
             }.map { caption ->
-                caption.copy(
-                    startTimeMs = caption.startTimeMs - scoredClip.startTimeMs,
-                    endTimeMs = caption.endTimeMs - scoredClip.startTimeMs
+                val adjustedStart = maxOf(0L, caption.startTimeMs - scoredClip.startTimeMs)
+                val adjustedEnd = minOf(
+                    scoredClip.endTimeMs - scoredClip.startTimeMs,
+                    caption.endTimeMs - scoredClip.startTimeMs
                 )
-            }
+                caption.copy(
+                    startTimeMs = adjustedStart,
+                    endTimeMs = adjustedEnd
+                )
+            }.filter { it.endTimeMs > it.startTimeMs }
 
             // Get face reframe point for this time range
             val faceFrame = faceResult.frames.find {
@@ -162,7 +176,7 @@ class VideoProcessingPipeline @Inject constructor(
             }
 
             Clip(
-                projectId = 0, // Will be set when saved
+                projectId = 0,
                 name = "Clip ${index + 1}",
                 sourceVideoUri = videoUri.toString(),
                 startTimeMs = scoredClip.startTimeMs,
@@ -188,14 +202,19 @@ class VideoProcessingPipeline @Inject constructor(
         val transcription = captionGenerator.generateCaptions(videoUri, language)
 
         val clipCaptions = transcription.segments.filter { caption ->
-            caption.startTimeMs >= clip.startTimeMs &&
-            caption.endTimeMs <= clip.endTimeMs
+            caption.startTimeMs <= clip.endTimeMs &&
+            caption.endTimeMs >= clip.startTimeMs
         }.map { caption ->
-            caption.copy(
-                startTimeMs = caption.startTimeMs - clip.startTimeMs,
-                endTimeMs = caption.endTimeMs - clip.startTimeMs
+            val adjustedStart = maxOf(0L, caption.startTimeMs - clip.startTimeMs)
+            val adjustedEnd = minOf(
+                clip.endTimeMs - clip.startTimeMs,
+                caption.endTimeMs - clip.startTimeMs
             )
-        }
+            caption.copy(
+                startTimeMs = adjustedStart,
+                endTimeMs = adjustedEnd
+            )
+        }.filter { it.endTimeMs > it.startTimeMs }
 
         clip.copy(captions = clipCaptions)
     }

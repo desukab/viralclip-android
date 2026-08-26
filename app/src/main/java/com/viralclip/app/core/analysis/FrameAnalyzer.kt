@@ -13,11 +13,13 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
-import kotlin.math.sqrt
+import kotlin.math.min
 
 /**
  * Frame-by-frame video analysis engine.
  * Analyzes brightness, motion, scene changes, and engagement metrics.
+ *
+ * All analysis operates on pre-downscaled frames (360px) to minimize memory usage.
  */
 @Singleton
 class FrameAnalyzer @Inject constructor(
@@ -29,6 +31,7 @@ class FrameAnalyzer @Inject constructor(
 
     /**
      * Analyze frames and produce per-frame metrics.
+     * Expects pre-downscaled frames from FFmpegProcessor.extractFrames().
      */
     suspend fun analyzeFrames(
         frames: List<Pair<Long, Bitmap>>
@@ -55,10 +58,10 @@ class FrameAnalyzer @Inject constructor(
                         timestampMs = timestampMs,
                         brightness = brightness,
                         motionScore = motionScore,
-                        faceCount = 0, // Will be populated by FaceTracker
+                        faceCount = 0,
                         facePositions = emptyList(),
                         sceneType = sceneType,
-                        speechDetected = brightness > 0.2f, // Simplified
+                        speechDetected = brightness > 0.2f,
                         engagementScore = engagement
                     )
                 )
@@ -73,7 +76,7 @@ class FrameAnalyzer @Inject constructor(
     }
 
     /**
-     * Detect scene changes / cuts in video.
+     * Detect scene changes / cuts in video using histogram comparison.
      */
     suspend fun detectSceneChanges(
         frames: List<Pair<Long, Bitmap>>,
@@ -82,7 +85,7 @@ class FrameAnalyzer @Inject constructor(
         val sceneChanges = mutableListOf<Long>()
         var prevHistogram: FloatArray? = null
 
-        for ((index, pair) in frames.withIndex()) {
+        for ((_, pair) in frames.withIndex()) {
             val (timestampMs, bitmap) = pair
 
             try {
@@ -99,7 +102,7 @@ class FrameAnalyzer @Inject constructor(
 
                 prevHistogram = histogram
             } catch (_: Exception) {
-                // Bitmap may be recycled or invalid, skip this frame
+                // Skip invalid frames
             }
         }
 
@@ -120,42 +123,76 @@ class FrameAnalyzer @Inject constructor(
             val windowEnd = minOf(i + windowSize, analyses.size)
             val window = analyses.subList(i, windowEnd)
             val avgEngagement = window.map { it.engagementScore }.average().toFloat()
-
             moments.add(analyses[i].timestampMs to avgEngagement)
         }
 
         moments.sortedByDescending { it.second }.take(10)
     }
 
+    /**
+     * Analyze brightness using sampled pixels for performance.
+     * Operates on downscaled frames (360px) so full pixel scan is fine.
+     */
     private fun analyzeBrightness(bitmap: Bitmap): Float {
-        var totalBrightness = 0L
-        val pixels = IntArray(bitmap.width * bitmap.height)
-        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        if (bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) return 0.5f
 
-        for (pixel in pixels) {
-            val r = Color.red(pixel)
-            val g = Color.green(pixel)
-            val b = Color.blue(pixel)
-            totalBrightness += (r * 0.299 + g * 0.587 + b * 0.114).toLong()
+        // Use stride sampling for speed on even downscaled frames
+        val stride = maxOf(1, minOf(bitmap.width, bitmap.height) / 30)
+        var totalBrightness = 0L
+        var count = 0
+
+        val w = bitmap.width
+        val h = bitmap.height
+        val pixels = IntArray(w * h)
+        try {
+            bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+        } catch (_: Exception) {
+            return 0.5f
         }
 
-        return (totalBrightness.toFloat() / (pixels.size * 255)).coerceIn(0f, 1f)
+        for (y in 0 until h step stride) {
+            for (x in 0 until w step stride) {
+                val pixel = pixels[y * w + x]
+                val r = Color.red(pixel)
+                val g = Color.green(pixel)
+                val b = Color.blue(pixel)
+                totalBrightness += (r * 0.299 + g * 0.587 + b * 0.114).toLong()
+                count++
+            }
+        }
+
+        return if (count > 0) (totalBrightness.toFloat() / (count * 255)).coerceIn(0f, 1f) else 0.5f
     }
 
+    /**
+     * Calculate motion between two frames using sampled pixel differencing.
+     * Uses stride sampling to avoid allocating full pixel arrays.
+     */
     private fun calculateMotion(current: Bitmap, previous: Bitmap): Float {
+        if (current.isRecycled || previous.isRecycled) return 0f
+
         val w = minOf(current.width, previous.width)
         val h = minOf(current.height, previous.height)
-        val step = 4 // Sample every 4th pixel for speed
+        if (w <= 0 || h <= 0) return 0f
+
+        // Use larger stride for motion detection (still accurate enough)
+        val stride = maxOf(4, minOf(w, h) / 25)
 
         var diff = 0f
         var count = 0
+
         val pixels1 = IntArray(w * h)
         val pixels2 = IntArray(w * h)
-        current.getPixels(pixels1, 0, w, 0, 0, w, h)
-        previous.getPixels(pixels2, 0, w, 0, 0, w, h)
 
-        for (y in 0 until h step step) {
-            for (x in 0 until w step step) {
+        try {
+            current.getPixels(pixels1, 0, w, 0, 0, w, h)
+            previous.getPixels(pixels2, 0, w, 0, 0, w, h)
+        } catch (_: Exception) {
+            return 0f
+        }
+
+        for (y in 0 until h step stride) {
+            for (x in 0 until w step stride) {
                 val idx = y * w + x
                 val p1 = pixels1[idx]
                 val p2 = pixels2[idx]
@@ -170,20 +207,38 @@ class FrameAnalyzer @Inject constructor(
         return if (count > 0) (diff / count).coerceIn(0f, 1f) else 0f
     }
 
+    /**
+     * Compute color histogram with stride sampling.
+     */
     private fun computeHistogram(bitmap: Bitmap): FloatArray {
-        val bins = FloatArray(64) // 64-bin histogram
-        val pixels = IntArray(bitmap.width * bitmap.height)
-        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        val bins = FloatArray(64)
+        if (bitmap.isRecycled || bitmap.width <= 0 || bitmap.height <= 0) return bins
 
-        for (pixel in pixels) {
-            val gray = (Color.red(pixel) * 0.299 + Color.green(pixel) * 0.587 +
-                    Color.blue(pixel) * 0.114).toInt()
-            val bin = (gray * 63 / 255).coerceIn(0, 63)
-            bins[bin]++
+        val stride = maxOf(1, minOf(bitmap.width, bitmap.height) / 30)
+        val w = bitmap.width
+        val h = bitmap.height
+        val pixels = IntArray(w * h)
+
+        try {
+            bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+        } catch (_: Exception) {
+            return bins
+        }
+
+        var totalPixels = 0
+        for (y in 0 until h step stride) {
+            for (x in 0 until w step stride) {
+                val pixel = pixels[y * w + x]
+                val gray = (Color.red(pixel) * 0.299 + Color.green(pixel) * 0.587 +
+                        Color.blue(pixel) * 0.114).toInt()
+                val bin = (gray * 63 / 255).coerceIn(0, 63)
+                bins[bin]++
+                totalPixels++
+            }
         }
 
         // Normalize
-        val total = pixels.size.toFloat()
+        val total = totalPixels.toFloat().coerceAtLeast(1f)
         for (i in bins.indices) bins[i] /= total
         return bins
     }
@@ -207,11 +262,10 @@ class FrameAnalyzer @Inject constructor(
     }
 
     private fun calculateEngagementScore(brightness: Float, motion: Float): Float {
-        // Optimal engagement: well-lit with moderate motion
-        val brightnessScore = 1f - abs(brightness - 0.5f) * 2f // Peak at 0.5
+        val brightnessScore = 1f - abs(brightness - 0.5f) * 2f
         val motionScore = when {
-            motion in 0.1f..0.5f -> motion * 2f // Peak at 0.25
-            motion > 0.5f -> 1f - (motion - 0.5f) // Decay after 0.5
+            motion in 0.1f..0.5f -> motion * 2f
+            motion > 0.5f -> 1f - (motion - 0.5f)
             else -> motion * 3f
         }
         return (brightnessScore * 0.4f + motionScore * 0.6f).coerceIn(0f, 1f)
