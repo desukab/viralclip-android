@@ -486,7 +486,9 @@ fun PlatformChip(
             borderColor = DarkBorder,
             selectedBorderColor = platformColor,
             borderWidth = 1.dp,
-            selectedBorderWidth = 2.dp
+            selectedBorderWidth = 2.dp,
+            enabled = true,
+            selected = isSelected
         )
     )
 }
