@@ -22,18 +22,22 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Generate Keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore viralclip-release.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias viralclip \
+            -storepass viralclip123 \
+            -keypass viralclip123 \
+            -dname "CN=ViralClip, OU=Dev, O=ViralClip, L=Unknown, ST=Unknown, C=US"
+          echo "KEYSTORE_PATH=${{ github.workspace }}/viralclip-release.jks" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=viralclip123" >> $GITHUB_ENV
+          echo "KEY_ALIAS=viralclip" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=viralclip123" >> $GITHUB_ENV
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ViralClip-debug.apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
 
       - name: Build Release APK
         run: ./gradlew assembleRelease --no-daemon
@@ -41,6 +45,6 @@ jobs:
       - name: Upload Release APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ViralClip-release.apk
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          name: ViralClip.apk
+          path: app/build/outputs/apk/release/app-release.apk
           retention-days: 30
