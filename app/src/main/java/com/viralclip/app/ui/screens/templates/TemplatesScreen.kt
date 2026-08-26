@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.viralclip.app.domain.model.*
+import com.viralclip.app.domain.model.FontWeight as DomainFontWeight
 import com.viralclip.app.ui.components.GradientTopBar
 import com.viralclip.app.ui.theme.*
 
@@ -251,16 +252,16 @@ private fun getTemplateColors(category: TemplateCategory): List<Color> = when (c
 }
 
 private fun getBuiltInTemplates(): List<Template> = listOf(
-    Template(1, "Bold Highlight", TemplateCategory.VIRAL, CaptionStyle(preset = CaptionPreset.BOLD_HIGHLIGHT, fontSize = 36, fontWeight = FontWeight.EXTRA_BOLD, fontColor = 0xFFFFFFFF, highlightColor = 0xFFFBBF24), "Bold yellow-highlighted captions for maximum impact"),
+    Template(1, "Bold Highlight", TemplateCategory.VIRAL, CaptionStyle(preset = CaptionPreset.BOLD_HIGHLIGHT, fontSize = 36, fontWeight = DomainFontWeight.EXTRA_BOLD, fontColor = 0xFFFFFFFF, highlightColor = 0xFFFBBF24), "Bold yellow-highlighted captions for maximum impact"),
     Template(2, "Karaoke Flow", TemplateCategory.CREATIVE, CaptionStyle(preset = CaptionPreset.KARAOKE, fontSize = 30, animation = CaptionAnimation.KARAOKE), "Karaoke-style word-by-word highlighting"),
-    Template(3, "Clean Minimal", TemplateCategory.MINIMAL, CaptionStyle(preset = CaptionPreset.MINIMAL, fontSize = 24, fontWeight = FontWeight.NORMAL, fontColor = 0xFFFFFFFF), "Clean, minimal white text for professional content"),
+    Template(3, "Clean Minimal", TemplateCategory.MINIMAL, CaptionStyle(preset = CaptionPreset.MINIMAL, fontSize = 24, fontWeight = DomainFontWeight.NORMAL, fontColor = 0xFFFFFFFF), "Clean, minimal white text for professional content"),
     Template(4, "Neon Glow", TemplateCategory.NEON, CaptionStyle(preset = CaptionPreset.NEON, fontSize = 32, fontColor = 0xFF06B6D4, highlightColor = 0xFFEC4899, outlineWidth = 3f), "Eye-catching neon glow effect"),
-    Template(5, "Dramatic", TemplateCategory.BOLD, CaptionStyle(preset = CaptionPreset.DRAMATIC, fontSize = 38, fontWeight = FontWeight.BLACK, fontColor = 0xFFFFFFFF, highlightColor = 0xFFEF4444), "High-contrast dramatic captions"),
-    Template(6, "Professional Blue", TemplateCategory.PROFESSIONAL, CaptionStyle(preset = CaptionPreset.DEFAULT, fontSize = 26, fontWeight = FontWeight.SEMI_BOLD, fontColor = 0xFFFFFFFF, backgroundColor = 0xFF1E40AF), "Professional blue-accented subtitles"),
-    Template(7, "Typewriter", TemplateCategory.CREATIVE, CaptionStyle(preset = CaptionPreset.TYPEWRITER, fontSize = 22, fontWeight = FontWeight.NORMAL, animation = CaptionAnimation.TYPEWRITER), "Classic typewriter animation effect"),
+    Template(5, "Dramatic", TemplateCategory.BOLD, CaptionStyle(preset = CaptionPreset.DRAMATIC, fontSize = 38, fontWeight = DomainFontWeight.BOLD, fontColor = 0xFFFFFFFF, highlightColor = 0xFFEF4444), "High-contrast dramatic captions"),
+    Template(6, "Professional Blue", TemplateCategory.PROFESSIONAL, CaptionStyle(preset = CaptionPreset.DEFAULT, fontSize = 26, fontWeight = DomainFontWeight.SEMI_BOLD, fontColor = 0xFFFFFFFF, backgroundColor = 0xFF1E40AF), "Professional blue-accented subtitles"),
+    Template(7, "Typewriter", TemplateCategory.CREATIVE, CaptionStyle(preset = CaptionPreset.TYPEWRITER, fontSize = 22, fontWeight = DomainFontWeight.NORMAL, animation = CaptionAnimation.TYPEWRITER), "Classic typewriter animation effect"),
     Template(8, "Pop In", TemplateCategory.PLAYFUL, CaptionStyle(preset = CaptionPreset.POP_IN, fontSize = 34, animation = CaptionAnimation.POP_IN, highlightColor = 0xFF34D399), "Fun pop-in animation for engaging content"),
-    Template(9, "Cinematic", TemplateCategory.CINEMATIC, CaptionStyle(preset = CaptionPreset.DEFAULT, fontSize = 28, fontWeight = FontWeight.LIGHT, fontColor = 0xFFE2E8F0, position = CaptionPosition.BOTTOM), "Cinematic feel with subtle captions"),
+    Template(9, "Cinematic", TemplateCategory.CINEMATIC, CaptionStyle(preset = CaptionPreset.DEFAULT, fontSize = 28, fontWeight = DomainFontWeight.LIGHT, fontColor = 0xFFE2E8F0, position = CaptionPosition.BOTTOM), "Cinematic feel with subtle captions"),
     Template(10, "Retro Wave", TemplateCategory.RETRO, CaptionStyle(preset = CaptionPreset.RETRO, fontSize = 30, fontColor = 0xFFFF6B6B, highlightColor = 0xFF4ECDC4), "Retro-inspired color palette"),
-    Template(11, "Elegant Gold", TemplateCategory.ELEGANT, CaptionStyle(preset = CaptionPreset.DEFAULT, fontSize = 26, fontWeight = FontWeight.MEDIUM, fontColor = 0xFFD4AF37), "Sophisticated gold accents"),
-    Template(12, "Gen Z Chaos", TemplateCategory.PLAYFUL, CaptionStyle(preset = CaptionPreset.BOUNCE, fontSize = 40, fontWeight = FontWeight.BLACK, fontColor = 0xFFFF0000, highlightColor = 0xFF00FF00, animation = CaptionAnimation.BOUNCE), "Loud, bold, chaotic energy")
+    Template(11, "Elegant Gold", TemplateCategory.ELEGANT, CaptionStyle(preset = CaptionPreset.DEFAULT, fontSize = 26, fontWeight = DomainFontWeight.MEDIUM, fontColor = 0xFFD4AF37), "Sophisticated gold accents"),
+    Template(12, "Gen Z Chaos", TemplateCategory.PLAYFUL, CaptionStyle(preset = CaptionPreset.BOUNCE, fontSize = 40, fontWeight = DomainFontWeight.BOLD, fontColor = 0xFFFF0000, highlightColor = 0xFF00FF00, animation = CaptionAnimation.BOUNCE), "Loud, bold, chaotic energy")
 )

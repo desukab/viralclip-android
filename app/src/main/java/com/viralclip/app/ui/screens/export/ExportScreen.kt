@@ -257,7 +257,7 @@ fun ExportScreen(
             // Processing indicator
             if (uiState.isExporting) {
                 LinearProgressIndicator(
-                    progress = { uiState.exportProgress },
+                    progress = uiState.exportProgress,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)

@@ -149,6 +149,7 @@ fun HomeScreen(
                     items(uiState.recentProjects) { project ->
                         ClipCard(
                             clip = com.viralclip.app.domain.model.Clip(
+                                projectId = project.id,
                                 name = project.name,
                                 sourceVideoUri = project.sourceVideoUri,
                                 startTimeMs = 0,

@@ -25,6 +25,7 @@ import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
 import com.viralclip.app.ui.viewmodels.EditorViewModel
+import com.viralclip.app.util.Extensions.formatDurationShort
 import com.viralclip.app.ui.viewmodels.EditorTool
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -266,19 +267,19 @@ private fun VideoPreviewArea(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        com.viralclip.app.util.Extensions.formatDurationShort(currentPositionMs),
+                        currentPositionMs.formatDurationShort(),
                         color = Color.White,
                         style = MaterialTheme.typography.labelMedium
                     )
                     Text(
-                        com.viralclip.app.util.Extensions.formatDurationShort(it.durationMs),
+                        it.durationMs.formatDurationShort(),
                         color = TextSecondary,
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
                 // Progress bar
                 LinearProgressIndicator(
-                    progress = { if (it.durationMs > 0) currentPositionMs.toFloat() / it.durationMs else 0f },
+                    progress = if (it.durationMs > 0) currentPositionMs.toFloat() / it.durationMs else 0f,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 6.dp)
@@ -355,6 +356,7 @@ private fun ClipsRow(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EditorToolsRow(
     selectedTool: EditorTool,
@@ -423,7 +425,7 @@ private fun TrimControls(
                     Column {
                         Text("Start", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
                         Text(
-                            com.viralclip.app.util.Extensions.formatDurationShort(it.startTimeMs),
+                            it.startTimeMs.formatDurationShort(),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -439,7 +441,7 @@ private fun TrimControls(
                     Column(horizontalAlignment = Alignment.End) {
                         Text("End", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
                         Text(
-                            com.viralclip.app.util.Extensions.formatDurationShort(it.endTimeMs),
+                            it.endTimeMs.formatDurationShort(),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -571,6 +573,7 @@ private fun SpeedControls(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FiltersPanel(
     filters: ClipFilters,

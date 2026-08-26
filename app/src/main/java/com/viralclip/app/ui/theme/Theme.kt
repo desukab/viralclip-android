@@ -44,14 +44,7 @@ private val DarkColorScheme = darkColorScheme(
     onErrorContainer = ErrorColor,
     inverseSurface = TextPrimary,
     inverseOnSurface = DarkBackground,
-    inversePrimary = ViralPurpleDark,
-    surfaceDim = DarkBackground,
-    surfaceBright = DarkSurfaceHighest,
-    surfaceContainerLowest = Color(0xFF08080C),
-    surfaceContainerLow = Color(0xFF0E0E15),
-    surfaceContainer = DarkSurface,
-    surfaceContainerHigh = DarkSurfaceElevated,
-    surfaceContainerHighest = DarkSurfaceHighest
+    inversePrimary = ViralPurpleDark
 )
 
 private val LightColorScheme = lightColorScheme(

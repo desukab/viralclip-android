@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.theme.*
+import com.viralclip.app.util.Extensions.maxDurationFormatted
+import androidx.compose.ui.text.TextStyle
 
 // ─── Caption Style Preset Grid ───────────────────────────────────────
 
@@ -90,15 +92,21 @@ fun CaptionPresetCard(
                 modifier = Modifier.padding(8.dp)
             ) {
                 // Preview text with style
-                Text(
-                    text = "Aa",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Unspecified,
-                    brush = if (colors.size > 1) {
-                        Brush.linearGradient(colors.map { Color(it) })
-                    } else null
-                )
+                if (colors.size > 1) {
+                    Text(
+                        text = "Aa",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        style = TextStyle(brush = Brush.linearGradient(colors))
+                    )
+                } else {
+                    Text(
+                        text = "Aa",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Unspecified
+                    )
+                }
                 Spacer(Modifier.height(6.dp))
                 Text(
                     preset.displayName,

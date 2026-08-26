@@ -55,6 +55,7 @@ fun ProjectsScreen(
                 items(uiState.recentProjects) { project ->
                     ClipCard(
                         clip = Clip(
+                            projectId = project.id,
                             name = project.name,
                             sourceVideoUri = project.sourceVideoUri,
                             startTimeMs = 0,

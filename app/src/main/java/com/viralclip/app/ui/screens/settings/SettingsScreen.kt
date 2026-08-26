@@ -41,43 +41,43 @@ fun SettingsScreen(
             // General
             SettingsSection("General") {
                 ToggleSettingRow("Dark Mode", "Use dark theme", darkMode, { darkMode = it })
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 ToggleSettingRow("Haptic Feedback", "Vibration on interactions", hapticFeedback, { hapticFeedback = it })
             }
 
             // Processing
             SettingsSection("Processing") {
                 ToggleSettingRow("GPU Acceleration", "Use GPU for faster processing", gpuAcceleration, { gpuAcceleration = it })
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 ToggleSettingRow("Auto-Save", "Save changes automatically", autoSave, { autoSave = it })
             }
 
             // Export Defaults
             SettingsSection("Export Defaults") {
                 SettingsItem("Default Platform", "TikTok", Icons.Filled.Devices)
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem("Default Quality", "High (1080p)", Icons.Filled.HighQuality)
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem("Default FPS", "30 fps", Icons.Filled.Speed)
             }
 
             // Storage
             SettingsSection("Storage") {
                 SettingsItem("Cache Size", "128 MB", Icons.Filled.Storage)
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem("Clear Cache", "", Icons.Filled.DeleteSweep, onClick = {})
             }
 
             // About
             SettingsSection("About") {
                 SettingsItem("Version", "1.0.0", Icons.Filled.Info)
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem("Rate Us", "Love ViralClip? Rate us!", Icons.Filled.Star, onClick = {})
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem("Send Feedback", "Help us improve", Icons.Filled.Feedback, onClick = {})
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem("Privacy Policy", "", Icons.Filled.PrivacyTip, onClick = {})
-                HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(color = DarkBorder, modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsItem("Terms of Service", "", Icons.Filled.Gavel, onClick = {})
             }
 

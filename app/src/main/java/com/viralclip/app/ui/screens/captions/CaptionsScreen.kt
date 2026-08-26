@@ -22,6 +22,7 @@ import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.components.*
 import com.viralclip.app.ui.theme.*
 import com.viralclip.app.ui.viewmodels.CaptionsViewModel
+import com.viralclip.app.util.Extensions.formatDurationShort
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -327,8 +328,8 @@ private fun TranscriptItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    com.viralclip.app.util.Extensions.formatDurationShort(caption.startTimeMs) + " → " +
-                    com.viralclip.app.util.Extensions.formatDurationShort(caption.endTimeMs),
+                    caption.startTimeMs.formatDurationShort() + " → " +
+                    caption.endTimeMs.formatDurationShort(),
                     style = MaterialTheme.typography.labelSmall,
                     color = ViralPurple
                 )
