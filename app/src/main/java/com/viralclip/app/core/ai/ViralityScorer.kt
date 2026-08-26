@@ -1,6 +1,7 @@
 package com.viralclip.app.core.ai
 
 import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
@@ -24,7 +25,7 @@ import kotlin.math.max
  */
 @Singleton
 class ViralityScorer @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
     private val _progress = MutableStateFlow(0f)
     val progress: StateFlow<Float> = _progress

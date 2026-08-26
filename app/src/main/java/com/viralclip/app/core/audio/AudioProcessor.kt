@@ -1,6 +1,7 @@
 package com.viralclip.app.core.audio
 
 import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -21,7 +22,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class AudioProcessor @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
     private val _progress = MutableStateFlow(0f)
     val progress: StateFlow<Float> = _progress

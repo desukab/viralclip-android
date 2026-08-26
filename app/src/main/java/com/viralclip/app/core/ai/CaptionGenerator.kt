@@ -1,6 +1,7 @@
 package com.viralclip.app.core.ai
 
 import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import android.net.Uri
 import com.viralclip.app.core.audio.AudioProcessor
 import com.viralclip.app.domain.model.*
@@ -24,7 +25,7 @@ import kotlin.math.min
  */
 @Singleton
 class CaptionGenerator @Inject constructor(
-    private val context: Context,
+    @ApplicationContext private val context: Context,
     private val audioProcessor: AudioProcessor
 ) {
     private val _progress = MutableStateFlow(0f)

@@ -1,6 +1,7 @@
 package com.viralclip.app.core.ai
 
 import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import android.graphics.Bitmap
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
@@ -22,7 +23,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class FaceTracker @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
     private val _progress = MutableStateFlow(0f)
     val progress: StateFlow<Float> = _progress

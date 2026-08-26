@@ -1,6 +1,7 @@
 package com.viralclip.app.core.analysis
 
 import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import android.graphics.Bitmap
 import android.graphics.Color
 import com.viralclip.app.core.video.FFmpegProcessor
@@ -22,7 +23,7 @@ import kotlin.math.min
  */
 @Singleton
 class FrameAnalyzer @Inject constructor(
-    private val context: Context,
+    @ApplicationContext private val context: Context,
     private val ffmpegProcessor: FFmpegProcessor
 ) {
     private val _progress = MutableStateFlow(0f)
