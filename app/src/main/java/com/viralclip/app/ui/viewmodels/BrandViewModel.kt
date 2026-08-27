@@ -12,7 +12,8 @@ import javax.inject.Inject
 data class BrandUiState(
     val presets: List<BrandPreset> = emptyList(),
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val editingPreset: BrandPreset? = null
 )
 
 @HiltViewModel
@@ -50,9 +51,28 @@ class BrandViewModel @Inject constructor(
         }
     }
 
+    fun createPresetFull(preset: BrandPreset) {
+        viewModelScope.launch {
+            brandPresetRepository.insertBrandPreset(preset)
+        }
+    }
+
+    fun updatePreset(preset: BrandPreset) {
+        viewModelScope.launch {
+            brandPresetRepository.updateBrandPreset(preset)
+        }
+    }
+
     fun deletePreset(id: Long) {
         viewModelScope.launch {
-            brandPresetRepository.deleteBrandPreset(id)
+            try {
+                brandPresetRepository.deleteBrandPreset(id)
+                _uiState.update {
+                    it.copy(presets = it.presets.filter { p -> p.id != id })
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = "Failed to delete preset") }
+            }
         }
     }
 
@@ -61,13 +81,40 @@ class BrandViewModel @Inject constructor(
             brandPresetRepository.getAllBrandPresets().first().let { existing ->
                 if (existing.isEmpty()) {
                     val defaults = listOf(
-                        BrandPreset(name = "My Brand", primaryColor = 0xFF7C3AED, secondaryColor = 0xFFEC4899, accentColor = 0xFF3B82F6),
-                        BrandPreset(name = "Tech Channel", primaryColor = 0xFF3B82F6, secondaryColor = 0xFF06B6D4, accentColor = 0xFF10B981),
-                        BrandPreset(name = "Gaming", primaryColor = 0xFFEF4444, secondaryColor = 0xFFF97316, accentColor = 0xFFFBBF24)
+                        BrandPreset(
+                            name = "My Brand",
+                            primaryColor = 0xFF7C3AED,
+                            secondaryColor = 0xFFEC4899,
+                            accentColor = 0xFF3B82F6
+                        ),
+                        BrandPreset(
+                            name = "Tech Channel",
+                            primaryColor = 0xFF3B82F6,
+                            secondaryColor = 0xFF06B6D4,
+                            accentColor = 0xFF10B981
+                        ),
+                        BrandPreset(
+                            name = "Gaming",
+                            primaryColor = 0xFFEF4444,
+                            secondaryColor = 0xFFF97316,
+                            accentColor = 0xFFFBBF24,
+                            watermarkEnabled = true,
+                            watermarkText = "@gamerpro"
+                        ),
+                        BrandPreset(
+                            name = "Minimalist",
+                            primaryColor = 0xFF1F2937,
+                            secondaryColor = 0xFF6B7280,
+                            accentColor = 0xFFF3F4F6
+                        )
                     )
                     defaults.forEach { brandPresetRepository.insertBrandPreset(it) }
                 }
             }
         }
+    }
+
+    fun dismissError() {
+        _uiState.update { it.copy(errorMessage = null) }
     }
 }

@@ -4,18 +4,25 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import com.viralclip.app.domain.model.Alignment as CaptionAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontWeight as ComposeFontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -34,6 +41,8 @@ fun CaptionsScreen(
     viewModel: CaptionsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val haptic = LocalHapticFeedback.current
+
     var selectedTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(clipId) { viewModel.loadClip(clipId) }
@@ -41,17 +50,31 @@ fun CaptionsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Captions", fontWeight = FontWeight.Bold) },
+                title = { Text("Captions", fontWeight = ComposeFontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Filled.ArrowBack, stringResource(R.string.nav_back))
                     }
                 },
                 actions = {
-                    TextButton(onClick = { viewModel.generateCaptions() }) {
-                        Icon(Icons.Filled.AutoAwesome, stringResource(R.string.captions_generate), modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Generate", color = ViralPurple)
+                    if (uiState.isGenerating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = ViralPurple,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(12.dp))
+                    } else {
+                        TextButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.generateCaptions()
+                            }
+                        ) {
+                            Icon(Icons.Filled.AutoAwesome, stringResource(R.string.captions_generate), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Generate", color = ViralPurple)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkSurface)
@@ -65,7 +88,6 @@ fun CaptionsScreen(
                 .padding(padding),
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            // Caption Preview
             item {
                 CaptionPreviewBox(
                     style = uiState.currentCaptionStyle,
@@ -74,7 +96,6 @@ fun CaptionsScreen(
                 )
             }
 
-            // Tabs
             item {
                 TabRow(
                     selectedTabIndex = selectedTab,
@@ -82,24 +103,45 @@ fun CaptionsScreen(
                     contentColor = ViralPurple,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 ) {
-                    Tab(selectedTab == 0, { selectedTab = 0 }) { Text("Style", modifier = Modifier.padding(12.dp)) }
-                    Tab(selectedTab == 1, { selectedTab = 1 }) { Text("Edit", modifier = Modifier.padding(12.dp)) }
-                    Tab(selectedTab == 2, { selectedTab = 2 }) { Text("Language", modifier = Modifier.padding(12.dp)) }
+                    Tab(selected = selectedTab == 0, onClick = {
+                        selectedTab = 0
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }) {
+                        Text("Style", modifier = Modifier.padding(12.dp))
+                    }
+                    Tab(selected = selectedTab == 1, onClick = {
+                        selectedTab = 1
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }) {
+                        Text("Edit", modifier = Modifier.padding(12.dp))
+                    }
+                    Tab(selected = selectedTab == 2, onClick = {
+                        selectedTab = 2
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }) {
+                        Text("Language", modifier = Modifier.padding(12.dp))
+                    }
+                    Tab(selected = selectedTab == 3, onClick = {
+                        selectedTab = 3
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }) {
+                        Text("Advanced", modifier = Modifier.padding(12.dp))
+                    }
                 }
             }
 
             when (selectedTab) {
                 0 -> {
-                    // Style Tab
-                    item {
-                        Spacer(Modifier.height(16.dp))
-                        SectionHeader(title = "Caption Style")
-                        Spacer(Modifier.height(12.dp))
-                    }
+                    item { Spacer(Modifier.height(16.dp)) }
+                    item { SectionHeader(title = "Caption Style") }
+                    item { Spacer(Modifier.height(12.dp)) }
                     item {
                         CaptionStylePresetGrid(
                             selectedPreset = uiState.selectedPreset,
-                            onPresetSelected = { viewModel.updateCaptionPreset(it) },
+                            onPresetSelected = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.updateCaptionPreset(it)
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp)
@@ -107,125 +149,78 @@ fun CaptionsScreen(
                         )
                     }
 
-                    // Color Picker
+                    item { Spacer(Modifier.height(20.dp)) }
+                    item { SectionHeader(title = "Colors") }
+                    item { Spacer(Modifier.height(12.dp)) }
                     item {
-                        Spacer(Modifier.height(20.dp))
-                        SectionHeader(title = "Font Color")
-                        Spacer(Modifier.height(12.dp))
-                        ColorPickerRow(
-                            selectedColor = uiState.currentCaptionStyle.fontColor,
-                            onColorSelected = { viewModel.updateFontColor(it) },
+                        ColorSection(
+                            label = "Font Color",
+                            color = uiState.currentCaptionStyle.fontColor,
+                            onColorSelected = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.updateFontColor(it)
+                            },
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                    item { Spacer(Modifier.height(16.dp)) }
+                    item {
+                        ColorSection(
+                            label = "Highlight Color",
+                            color = uiState.currentCaptionStyle.highlightColor,
+                            onColorSelected = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.updateHighlightColor(it)
+                            },
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                    item { Spacer(Modifier.height(16.dp)) }
+                    item {
+                        ColorSection(
+                            label = "Outline Color",
+                            color = uiState.currentCaptionStyle.outlineColor,
+                            onColorSelected = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.updateOutlineColor(it)
+                            },
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
 
-                    // Highlight Color
+                    item { Spacer(Modifier.height(20.dp)) }
+                    item { SectionHeader(title = "Size & Weight") }
+                    item { Spacer(Modifier.height(12.dp)) }
                     item {
-                        Spacer(Modifier.height(20.dp))
-                        SectionHeader(title = "Highlight Color")
-                        Spacer(Modifier.height(12.dp))
-                        ColorPickerRow(
-                            selectedColor = uiState.currentCaptionStyle.highlightColor,
-                            onColorSelected = { viewModel.updateHighlightColor(it) },
-                            modifier = Modifier.padding(horizontal = 16.dp)
+                        FontControls(
+                            fontSize = uiState.currentCaptionStyle.fontSize,
+                            fontWeight = uiState.currentCaptionStyle.fontWeight,
+                            onFontSizeChange = { viewModel.updateFontSize(it) },
+                            onFontWeightChange = { viewModel.updateFontWeight(it) }
                         )
                     }
 
-                    // Font Size
+                    item { Spacer(Modifier.height(20.dp)) }
+                    item { SectionHeader(title = "Position") }
+                    item { Spacer(Modifier.height(12.dp)) }
                     item {
-                        Spacer(Modifier.height(20.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Font Size", style = MaterialTheme.typography.titleSmall)
-                                    Text("${uiState.currentCaptionStyle.fontSize}sp", color = ViralPurple, fontWeight = FontWeight.Bold)
-                                }
-                                Slider(
-                                    value = uiState.currentCaptionStyle.fontSize.toFloat(),
-                                    onValueChange = { viewModel.updateFontSize(it.toInt()) },
-                                    valueRange = 16f..72f,
-                                    colors = SliderDefaults.colors(thumbColor = ViralPurple, activeTrackColor = ViralPurple)
-                                )
-                            }
-                        }
+                        PositionControls(
+                            position = uiState.currentCaptionStyle.position,
+                            onPositionChange = { viewModel.updatePosition(it) }
+                        )
                     }
 
-                    // Position
+                    item { Spacer(Modifier.height(20.dp)) }
+                    item { SectionHeader(title = "Animation") }
+                    item { Spacer(Modifier.height(12.dp)) }
                     item {
-                        Spacer(Modifier.height(20.dp))
-                        SectionHeader(title = "Position")
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            CaptionPosition.entries.take(3).forEach { pos ->
-                                val label = pos.displayName
-                                FilterChip(
-                                    selected = uiState.currentCaptionStyle.position == pos,
-                                    onClick = { viewModel.updatePosition(pos) },
-                                    label = { Text(label) },
-                                    modifier = Modifier.weight(1f),
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
-                                        selectedLabelColor = ViralPurple
-                                    )
-                                )
-                            }
-                        }
-                    }
-
-                    // Animation
-                    item {
-                        Spacer(Modifier.height(20.dp))
-                        SectionHeader(title = "Animation")
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CaptionAnimation.entries.forEach { anim ->
-                                FilterChip(
-                                    selected = uiState.currentCaptionStyle.animation == anim,
-                                    onClick = { viewModel.updateAnimation(anim) },
-                                    label = { Text(anim.displayName, fontSize = 11.sp) }
-                                )
-                            }
-                        }
-                    }
-
-                    // Case Style
-                    item {
-                        Spacer(Modifier.height(20.dp))
-                        SectionHeader(title = "Text Case")
-                        Spacer(Modifier.height(12.dp))
-                        Row(
-                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CaseStyle.entries.forEach { cs ->
-                                val label = when(cs) {
-                                    CaseStyle.NORMAL -> "Normal"
-                                    CaseStyle.UPPERCASE -> "UPPER"
-                                    CaseStyle.LOWERCASE -> "lower"
-                                    CaseStyle.TITLE_CASE -> "Title Case"
-                                    CaseStyle.FIRST_WORD_CAPS -> "First caps"
-                                }
-                                FilterChip(
-                                    selected = uiState.currentCaptionStyle.caseStyle == cs,
-                                    onClick = { viewModel.updateCaseStyle(cs) },
-                                    label = { Text(label, fontSize = 11.sp) }
-                                )
-                            }
-                        }
+                        AnimationControls(
+                            animation = uiState.currentCaptionStyle.animation,
+                            onAnimationChange = { viewModel.updateAnimation(it) }
+                        )
                     }
                 }
                 1 -> {
-                    // Edit Tab - Transcript
                     item { Spacer(Modifier.height(16.dp)) }
                     if (uiState.captions.isEmpty()) {
                         item {
@@ -236,6 +231,25 @@ fun CaptionsScreen(
                             )
                         }
                     } else {
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "${uiState.captions.size} caption segments",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = TextSecondary
+                                )
+                                TextButton(onClick = { viewModel.clearAllCaptions() }) {
+                                    Text("Clear All", color = ErrorColor)
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
                         items(uiState.captions.size) { index ->
                             val caption = uiState.captions[index]
                             val isEditing = uiState.editingCaptionId == caption.id
@@ -249,19 +263,93 @@ fun CaptionsScreen(
                                 onCancel = { viewModel.cancelCaptionEdit() },
                                 onDelete = { viewModel.deleteCaption(caption.id) }
                             )
+                            Spacer(Modifier.height(8.dp))
                         }
                     }
                 }
                 2 -> {
-                    // Language Tab
                     item { Spacer(Modifier.height(16.dp)) }
-                    items(uiState.availableLanguages.size) { index ->
-                        val (code, name) = uiState.availableLanguages[index]
-                        LanguageItem(
-                            name = name,
-                            code = code,
-                            isSelected = uiState.selectedLanguage == code,
-                            onClick = { viewModel.updateLanguage(code) }
+                    item { SectionHeader(title = "Transcription Language") }
+                    item { Spacer(Modifier.height(12.dp)) }
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                uiState.availableLanguages.forEach { (code, name) ->
+                                    LanguageItem(
+                                        name = name,
+                                        code = code,
+                                        isSelected = uiState.selectedLanguage == code,
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            viewModel.updateLanguage(code)
+                                        }
+                                    )
+                                    if (code != uiState.availableLanguages.last().first) {
+                                        Divider(color = DarkBorder, modifier = Modifier.padding(vertical = 4.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                3 -> {
+                    item { Spacer(Modifier.height(16.dp)) }
+                    item { SectionHeader(title = "Background") }
+                    item { Spacer(Modifier.height(12.dp)) }
+                    item {
+                        BackgroundControls(
+                            backgroundColor = uiState.currentCaptionStyle.backgroundColor,
+                            backgroundCornerRadius = uiState.currentCaptionStyle.backgroundCornerRadius,
+                            backgroundPadding = uiState.currentCaptionStyle.backgroundPadding,
+                            onBackgroundChange = { viewModel.updateBackgroundColor(it) },
+                            onCornerRadiusChange = { viewModel.updateBackgroundCornerRadius(it) },
+                            onPaddingChange = { viewModel.updateBackgroundPadding(it) }
+                        )
+                    }
+
+                    item { Spacer(Modifier.height(20.dp)) }
+                    item { SectionHeader(title = "Outline") }
+                    item { Spacer(Modifier.height(12.dp)) }
+                    item {
+                        OutlineControls(
+                            outlineWidth = uiState.currentCaptionStyle.outlineWidth,
+                            onOutlineWidthChange = { viewModel.updateOutlineWidth(it) }
+                        )
+                    }
+
+                    item { Spacer(Modifier.height(20.dp)) }
+                    item { SectionHeader(title = "Shadow") }
+                    item { Spacer(Modifier.height(12.dp)) }
+                    item {
+                        ShadowControls(
+                            shadow = uiState.currentCaptionStyle.shadow,
+                            onShadowChange = { viewModel.updateShadow(it) }
+                        )
+                    }
+
+                    item { Spacer(Modifier.height(20.dp)) }
+                    item { SectionHeader(title = "Text Case") }
+                    item { Spacer(Modifier.height(12.dp)) }
+                    item {
+                        CaseStyleControls(
+                            caseStyle = uiState.currentCaptionStyle.caseStyle,
+                            onCaseStyleChange = { viewModel.updateCaseStyle(it) }
+                        )
+                    }
+
+                    item { Spacer(Modifier.height(20.dp)) }
+                    item { SectionHeader(title = "Alignment") }
+                    item { Spacer(Modifier.height(12.dp)) }
+                    item {
+                        AlignmentControls(
+                            alignment = uiState.currentCaptionStyle.alignment,
+                            onAlignmentChange = { viewModel.updateAlignment(it) }
                         )
                     }
                 }
@@ -271,35 +359,442 @@ fun CaptionsScreen(
 }
 
 @Composable
-private fun CaptionPreviewBox(
-    style: CaptionStyle,
-    text: String,
+private fun ColorSection(
+    label: String,
+    color: Long,
+    onColorSelected: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(DarkSurfaceHighest, DarkBackground)
-                )
-            ),
-        contentAlignment = when (style.position) {
-            CaptionPosition.TOP -> Alignment.TopCenter
-            CaptionPosition.CENTER -> Alignment.Center
-            else -> Alignment.BottomCenter
-        }
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
     ) {
-        Text(
-            text = text,
-            fontSize = style.fontSize.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(style.fontColor),
-            modifier = Modifier.padding(24.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(label, style = MaterialTheme.typography.titleSmall)
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color(color))
+                        .border(2.dp, DarkBorder, CircleShape)
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+            ColorPickerRow(
+                selectedColor = color,
+                onColorSelected = onColorSelected,
+                colors = listOf(
+                    0xFFFFFFFF, 0xFFFBBF24, 0xFF34D399, 0xFF60A5FA,
+                    0xFFF472B6, 0xFFA78BFA, 0xFFEF4444, 0xFFF97316,
+                    0xFF06B6D4, 0xFF10B981, 0xFF000000, 0xFF7C3AED
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun FontControls(
+    fontSize: Int,
+    fontWeight: FontWeight,
+    onFontSizeChange: (Int) -> Unit,
+    onFontWeightChange: (FontWeight) -> Unit = {}
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Font Size", style = MaterialTheme.typography.titleSmall)
+                Text("${fontSize}sp", color = ViralPurple, fontWeight = ComposeFontWeight.Bold)
+            }
+            Slider(
+                value = fontSize.toFloat(),
+                onValueChange = { onFontSizeChange(it.toInt()) },
+                valueRange = 16f..72f,
+                colors = SliderDefaults.colors(
+                    thumbColor = ViralPurple,
+                    activeTrackColor = ViralPurple,
+                    inactiveTrackColor = ViralPurple.copy(alpha = 0.15f)
+                )
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Text("Font Weight", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FontWeight.entries.take(4).forEach { weight ->
+                    FilterChip(
+                        selected = fontWeight == weight,
+                        onClick = { onFontWeightChange(weight) },
+                        label = { Text(weight.name.take(4), fontSize = 11.sp) },
+                        modifier = Modifier.weight(1f),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
+                            selectedLabelColor = ViralPurple
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PositionControls(
+    position: CaptionPosition,
+    onPositionChange: (CaptionPosition) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                listOf(
+                    CaptionPosition.TOP to Icons.Filled.VerticalAlignTop,
+                    CaptionPosition.CENTER to Icons.Filled.VerticalAlignCenter,
+                    CaptionPosition.BOTTOM to Icons.Filled.VerticalAlignBottom
+                ).forEach { (pos, icon) ->
+                    FilterChip(
+                        selected = position == pos,
+                        onClick = { onPositionChange(pos) },
+                        label = { Text(pos.displayName) },
+                        leadingIcon = { Icon(icon, null, modifier = Modifier.size(16.dp)) },
+                        modifier = Modifier.weight(1f),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
+                            selectedLabelColor = ViralPurple
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnimationControls(
+    animation: CaptionAnimation,
+    onAnimationChange: (CaptionAnimation) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CaptionAnimation.entries.forEach { anim ->
+                    FilterChip(
+                        selected = animation == anim,
+                        onClick = { onAnimationChange(anim) },
+                        label = { Text(anim.displayName, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
+                            selectedLabelColor = ViralPurple
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BackgroundControls(
+    backgroundColor: Long,
+    backgroundCornerRadius: Float,
+    backgroundPadding: Float,
+    onBackgroundChange: (Long) -> Unit,
+    onCornerRadiusChange: (Float) -> Unit,
+    onPaddingChange: (Float) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Background Color", style = MaterialTheme.typography.titleSmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(backgroundColor))
+                            .border(2.dp, DarkBorder, CircleShape)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Switch(
+                        checked = backgroundColor != 0L,
+                        onCheckedChange = { onBackgroundChange(if (it) 0x80000000 else 0L) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = ViralPurple,
+                            checkedTrackColor = ViralPurple.copy(alpha = 0.3f)
+                        )
+                    )
+                }
+            }
+            if (backgroundColor != 0L) {
+                ColorPickerRow(
+                    selectedColor = backgroundColor,
+                    onColorSelected = onBackgroundChange,
+                    colors = listOf(
+                        0x80000000, 0x80708090, 0x80333333, 0x80FFFFFF,
+                        0x807C3AED, 0x80EC4899, 0x8006B6D4, 0x80EF4444
+                    )
+                )
+                Spacer(Modifier.height(16.dp))
+                SliderSettingRow(
+                    label = "Corner Radius",
+                    value = backgroundCornerRadius,
+                    onValueChange = onCornerRadiusChange,
+                    valueRange = 0f..24f,
+                    valueText = "${backgroundCornerRadius.toInt()}dp"
+                )
+                Spacer(Modifier.height(8.dp))
+                SliderSettingRow(
+                    label = "Padding",
+                    value = backgroundPadding,
+                    onValueChange = onPaddingChange,
+                    valueRange = 0f..24f,
+                    valueText = "${backgroundPadding.toInt()}dp"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OutlineControls(
+    outlineWidth: Float,
+    onOutlineWidthChange: (Float) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Outline Width", style = MaterialTheme.typography.titleSmall)
+                Switch(
+                    checked = outlineWidth > 0f,
+                    onCheckedChange = { onOutlineWidthChange(if (it) 2f else 0f) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = ViralPurple,
+                        checkedTrackColor = ViralPurple.copy(alpha = 0.3f)
+                    )
+                )
+            }
+            if (outlineWidth > 0f) {
+                Spacer(Modifier.height(8.dp))
+                SliderSettingRow(
+                    label = "Width",
+                    value = outlineWidth,
+                    onValueChange = onOutlineWidthChange,
+                    valueRange = 1f..8f,
+                    valueText = "${outlineWidth}px"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShadowControls(
+    shadow: CaptionShadow,
+    onShadowChange: (CaptionShadow) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Text Shadow", style = MaterialTheme.typography.titleSmall)
+                Switch(
+                    checked = shadow.enabled,
+                    onCheckedChange = { onShadowChange(shadow.copy(enabled = it)) },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = ViralPurple,
+                        checkedTrackColor = ViralPurple.copy(alpha = 0.3f)
+                    )
+                )
+            }
+            if (shadow.enabled) {
+                Spacer(Modifier.height(12.dp))
+                SliderSettingRow(
+                    label = "Blur Radius",
+                    value = shadow.blurRadius,
+                    onValueChange = { onShadowChange(shadow.copy(blurRadius = it)) },
+                    valueRange = 0f..16f,
+                    valueText = "${shadow.blurRadius.toInt()}px"
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Offset X", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                        Slider(
+                            value = shadow.offsetX,
+                            onValueChange = { onShadowChange(shadow.copy(offsetX = it)) },
+                            valueRange = -8f..8f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = ViralPurple,
+                                activeTrackColor = ViralPurple
+                            )
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Offset Y", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                        Slider(
+                            value = shadow.offsetY,
+                            onValueChange = { onShadowChange(shadow.copy(offsetY = it)) },
+                            valueRange = -8f..8f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = ViralPurple,
+                                activeTrackColor = ViralPurple
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CaseStyleControls(
+    caseStyle: CaseStyle,
+    onCaseStyleChange: (CaseStyle) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CaseStyle.entries.forEach { cs ->
+                    val label = when(cs) {
+                        CaseStyle.NORMAL -> "Normal"
+                        CaseStyle.UPPERCASE -> "UPPER"
+                        CaseStyle.LOWERCASE -> "lower"
+                        CaseStyle.TITLE_CASE -> "Title Case"
+                        CaseStyle.FIRST_WORD_CAPS -> "First caps"
+                    }
+                    FilterChip(
+                        selected = caseStyle == cs,
+                        onClick = { onCaseStyleChange(cs) },
+                        label = { Text(label, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
+                            selectedLabelColor = ViralPurple
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlignmentControls(
+    alignment: CaptionAlignment,
+    onAlignmentChange: (CaptionAlignment) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                listOf(
+                    CaptionAlignment.LEFT to Icons.Filled.FormatAlignLeft,
+                    CaptionAlignment.CENTER to Icons.Filled.FormatAlignCenter,
+                    CaptionAlignment.RIGHT to Icons.Filled.FormatAlignRight
+                ).forEach { (align, icon) ->
+                    FilterChip(
+                        selected = alignment == align,
+                        onClick = { onAlignmentChange(align) },
+                        label = { Text(align.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                        leadingIcon = { Icon(icon, null, modifier = Modifier.size(16.dp)) },
+                        modifier = Modifier.weight(1f),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
+                            selectedLabelColor = ViralPurple
+                        )
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -317,7 +812,7 @@ private fun TranscriptItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isEditing) ViralPurple.copy(alpha = 0.08f) else DarkSurfaceElevated
@@ -376,7 +871,7 @@ private fun LanguageItem(name: String, code: String, isSelected: Boolean, onClic
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

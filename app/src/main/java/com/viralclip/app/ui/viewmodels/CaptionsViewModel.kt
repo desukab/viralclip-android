@@ -34,7 +34,13 @@ data class CaptionsUiState(
         "ar" to "Arabic",
         "hi" to "Hindi",
         "it" to "Italian",
-        "ru" to "Russian"
+        "ru" to "Russian",
+        "nl" to "Dutch",
+        "pl" to "Polish",
+        "tr" to "Turkish",
+        "vi" to "Vietnamese",
+        "th" to "Thai",
+        "id" to "Indonesian"
     )
 )
 
@@ -74,7 +80,6 @@ class CaptionsViewModel @Inject constructor(
                     Uri.parse(clip.sourceVideoUri),
                     _uiState.value.selectedLanguage
                 )
-                // Filter captions to clip time range
                 val clipCaptions = result.segments.map { seg ->
                     seg.copy(
                         clipId = clip.id,
@@ -92,6 +97,15 @@ class CaptionsViewModel @Inject constructor(
         }
     }
 
+    fun clearAllCaptions() {
+        val clip = _uiState.value.clip ?: return
+        viewModelScope.launch {
+            captionRepository.deleteCaptionsByClipId(clip.id)
+            clipRepository.updateClip(clip.copy(captions = emptyList()))
+            _uiState.update { it.copy(captions = emptyList()) }
+        }
+    }
+
     fun updateCaptionPreset(preset: CaptionPreset) {
         val clip = _uiState.value.clip ?: return
         val newStyle = _uiState.value.currentCaptionStyle.copy(preset = preset)
@@ -101,44 +115,23 @@ class CaptionsViewModel @Inject constructor(
         }
     }
 
-    fun updateFontColor(color: Long) {
-        updateStyle { it.copy(fontColor = color) }
-    }
-
-    fun updateHighlightColor(color: Long) {
-        updateStyle { it.copy(highlightColor = color) }
-    }
-
-    fun updateFontSize(size: Int) {
-        updateStyle { it.copy(fontSize = size) }
-    }
-
-    fun updatePosition(position: CaptionPosition) {
-        updateStyle { it.copy(position = position) }
-    }
-
-    fun updateAnimation(animation: CaptionAnimation) {
-        updateStyle { it.copy(animation = animation) }
-    }
-
-    fun updateOutlineWidth(width: Float) {
-        updateStyle { it.copy(outlineWidth = width) }
-    }
-
-    fun updateOutlineColor(color: Long) {
-        updateStyle { it.copy(outlineColor = color) }
-    }
-
-    fun updateCaseStyle(caseStyle: CaseStyle) {
-        updateStyle { it.copy(caseStyle = caseStyle) }
-    }
+    fun updateFontColor(color: Long) = updateStyle { it.copy(fontColor = color) }
+    fun updateHighlightColor(color: Long) = updateStyle { it.copy(highlightColor = color) }
+    fun updateFontSize(size: Int) = updateStyle { it.copy(fontSize = size) }
+    fun updateFontWeight(weight: FontWeight) = updateStyle { it.copy(fontWeight = weight) }
+    fun updatePosition(position: CaptionPosition) = updateStyle { it.copy(position = position) }
+    fun updateAnimation(animation: CaptionAnimation) = updateStyle { it.copy(animation = animation) }
+    fun updateOutlineWidth(width: Float) = updateStyle { it.copy(outlineWidth = width) }
+    fun updateOutlineColor(color: Long) = updateStyle { it.copy(outlineColor = color) }
+    fun updateCaseStyle(caseStyle: CaseStyle) = updateStyle { it.copy(caseStyle = caseStyle) }
+    fun updateAlignment(alignment: Alignment) = updateStyle { it.copy(alignment = alignment) }
+    fun updateBackgroundColor(color: Long) = updateStyle { it.copy(backgroundColor = color) }
+    fun updateBackgroundCornerRadius(radius: Float) = updateStyle { it.copy(backgroundCornerRadius = radius) }
+    fun updateBackgroundPadding(padding: Float) = updateStyle { it.copy(backgroundPadding = padding) }
+    fun updateShadow(shadow: CaptionShadow) = updateStyle { it.copy(shadow = shadow) }
 
     fun updateLanguage(language: String) {
         _uiState.update { it.copy(selectedLanguage = language) }
-    }
-
-    fun updateAlignment(alignment: Alignment) {
-        updateStyle { it.copy(alignment = alignment) }
     }
 
     fun startEditingCaption(captionId: Long, text: String) {
@@ -185,5 +178,4 @@ class CaptionsViewModel @Inject constructor(
             _uiState.update { it.copy(currentCaptionStyle = newStyle) }
         }
     }
-
 }

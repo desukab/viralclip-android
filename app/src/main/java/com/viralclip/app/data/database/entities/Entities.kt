@@ -27,21 +27,35 @@ class Converters {
 
     @TypeConverter
     fun toCaptionStyle(value: String): CaptionStyle =
-        gson.fromJson(value, CaptionStyle::class.java)
+        gson.fromJson(value, CaptionStyle::class.java) ?: CaptionStyle()
 
     @TypeConverter
     fun fromClipFilters(value: ClipFilters): String = gson.toJson(value)
 
     @TypeConverter
     fun toClipFilters(value: String): ClipFilters =
-        gson.fromJson(value, ClipFilters::class.java)
+        gson.fromJson(value, ClipFilters::class.java) ?: ClipFilters()
 
     @TypeConverter
     fun fromTextOverlayList(value: List<TextOverlay>): String = gson.toJson(value)
 
     @TypeConverter
     fun toTextOverlayList(value: String): List<TextOverlay> =
-        gson.fromJson(value, object : TypeToken<List<TextOverlay>>() {}.type)
+        gson.fromJson(value, object : TypeToken<List<TextOverlay>>() {}.type) ?: emptyList()
+
+    @TypeConverter
+    fun fromExportSettings(value: ExportSettings): String = gson.toJson(value)
+
+    @TypeConverter
+    fun toExportSettings(value: String): ExportSettings =
+        gson.fromJson(value, ExportSettings::class.java) ?: ExportSettings()
+
+    @TypeConverter
+    fun fromTemplateCategory(value: TemplateCategory): String = value.name
+
+    @TypeConverter
+    fun toTemplateCategory(value: String): TemplateCategory =
+        runCatching { TemplateCategory.valueOf(value) }.getOrDefault(TemplateCategory.VIRAL)
 }
 
 // ─── Project Entity ──────────────────────────────────────────────────
@@ -56,7 +70,10 @@ data class ProjectEntity(
     val thumbnailPath: String? = null,
     val duration: Long = 0L,
     val templateId: Long? = null,
-    val brandPresetId: Long? = null
+    val brandPresetId: Long? = null,
+    val exportSettings: ExportSettings = ExportSettings(),
+    val isArchived: Boolean = false,
+    val lastOpenedAt: Long = System.currentTimeMillis()
 ) {
     fun toDomain(clips: List<Clip> = emptyList()) = Project(
         id = id, name = name, sourceVideoUri = sourceVideoUri,
@@ -71,7 +88,8 @@ data class ProjectEntity(
             sourceVideoUri = project.sourceVideoUri,
             createdAt = project.createdAt, updatedAt = project.updatedAt,
             thumbnailPath = project.thumbnailPath, duration = project.duration,
-            templateId = project.templateId, brandPresetId = project.brandPresetId
+            templateId = project.templateId, brandPresetId = project.brandPresetId,
+            lastOpenedAt = System.currentTimeMillis()
         )
     }
 }
@@ -88,7 +106,7 @@ data class ProjectEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("projectId")]
+    indices = [Index("projectId"), Index("viralityScore"), Index("order")]
 )
 @TypeConverters(Converters::class)
 data class ClipEntity(
@@ -106,7 +124,13 @@ data class ClipEntity(
     val isMuted: Boolean = false,
     val filters: ClipFilters = ClipFilters(),
     val textOverlays: List<TextOverlay> = emptyList(),
-    val selected: Boolean = false
+    val selected: Boolean = false,
+    val exportedPath: String? = null,
+    val exportProgress: Float = 0f,
+    val isExported: Boolean = false,
+    val thumbnailPath: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 ) {
     fun toDomain() = Clip(
         id = id, projectId = projectId, name = name,
@@ -145,7 +169,7 @@ data class ClipEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("clipId")]
+    indices = [Index("clipId"), Index("startTimeMs")]
 )
 data class CaptionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -154,7 +178,8 @@ data class CaptionEntity(
     val startTimeMs: Long,
     val endTimeMs: Long,
     val confidence: Float = 1.0f,
-    val speakerIndex: Int = 0
+    val speakerIndex: Int = 0,
+    val language: String = "en"
 ) {
     fun toDomain() = CaptionSegment(
         id = id, clipId = clipId, text = text,
@@ -176,7 +201,7 @@ data class CaptionEntity(
 
 // ─── Template Entity ─────────────────────────────────────────────────
 
-@Entity(tableName = "templates")
+@Entity(tableName = "templates", indices = [Index("category"), Index("isBuiltIn")])
 @TypeConverters(Converters::class)
 data class TemplateEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -186,7 +211,10 @@ data class TemplateEntity(
     val description: String,
     val thumbnailUrl: String? = null,
     val isBuiltIn: Boolean = true,
-    val isPremium: Boolean = false
+    val isPremium: Boolean = false,
+    val usageCount: Int = 0,
+    val rating: Float = 0f,
+    val createdAt: Long = System.currentTimeMillis()
 ) {
     fun toDomain() = Template(
         id = id, name = name, category = category,
@@ -225,7 +253,8 @@ data class BrandPresetEntity(
     val introTemplateId: Long? = null,
     val outroTemplateId: Long? = null,
     val defaultCaptionStyle: CaptionStyle = CaptionStyle(),
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 ) {
     fun toDomain() = BrandPreset(
         id = id, name = name,
@@ -255,3 +284,59 @@ data class BrandPresetEntity(
         )
     }
 }
+
+// ─── Processing Job Entity (for tracking async work) ─────────────────
+
+@Entity(
+    tableName = "processing_jobs",
+    indices = [Index("status"), Index("createdAt")]
+)
+data class ProcessingJobEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val projectId: Long? = null,
+    val clipId: Long? = null,
+    val jobType: String,
+    val status: String = STATUS_PENDING,
+    val progress: Float = 0f,
+    val inputUri: String,
+    val outputPath: String? = null,
+    val errorMessage: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val completedAt: Long? = null,
+    val retryCount: Int = 0
+) {
+    companion object {
+        const val STATUS_PENDING = "PENDING"
+        const val STATUS_RUNNING = "RUNNING"
+        const val STATUS_COMPLETED = "COMPLETED"
+        const val STATUS_FAILED = "FAILED"
+        const val STATUS_CANCELLED = "CANCELLED"
+
+        const val TYPE_PROCESS_VIDEO = "PROCESS_VIDEO"
+        const val TYPE_EXPORT_CLIP = "EXPORT_CLIP"
+        const val TYPE_GENERATE_CAPTIONS = "GENERATE_CAPTIONS"
+        const val TYPE_TRANSCRIBE_AUDIO = "TRANSCRIBE_AUDIO"
+    }
+}
+
+// ─── Exported Asset Entity (for MediaStore tracking) ─────────────────
+
+@Entity(
+    tableName = "exported_assets",
+    indices = [Index("projectId"), Index("clipId"), Index("exportedAt")]
+)
+data class ExportedAssetEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val projectId: Long,
+    val clipId: Long? = null,
+    val filePath: String,
+    val fileName: String,
+    val mimeType: String,
+    val sizeBytes: Long,
+    val width: Int = 0,
+    val height: Int = 0,
+    val durationMs: Long = 0,
+    val platform: String? = null,
+    val sharedTo: String? = null,
+    val exportedAt: Long = System.currentTimeMillis()
+)

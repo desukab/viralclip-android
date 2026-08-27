@@ -1,11 +1,14 @@
 package com.viralclip.app.ui.screens.templates
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -27,6 +32,7 @@ import com.viralclip.app.ui.theme.*
 fun TemplatesScreen(
     onNavigateBack: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
     var selectedCategory by remember { mutableStateOf<TemplateCategory?>(null) }
     var selectedTemplate by remember { mutableStateOf<Template?>(null) }
 
@@ -36,7 +42,12 @@ fun TemplatesScreen(
     } else templates
 
     Scaffold(
-        topBar = { GradientTopBar("Templates", onBack = onNavigateBack) },
+        topBar = {
+            GradientTopBar(
+                title = "Templates",
+                onBack = onNavigateBack
+            )
+        },
         containerColor = DarkBackground
     ) { padding ->
         Column(
@@ -44,7 +55,6 @@ fun TemplatesScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Category Filter
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -54,19 +64,32 @@ fun TemplatesScreen(
             ) {
                 FilterChip(
                     selected = selectedCategory == null,
-                    onClick = { selectedCategory = null },
-                    label = { Text("All") }
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        selectedCategory = null
+                    },
+                    label = { Text("All") },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
+                        selectedLabelColor = ViralPurple
+                    )
                 )
                 TemplateCategory.entries.forEach { cat ->
                     FilterChip(
                         selected = selectedCategory == cat,
-                        onClick = { selectedCategory = cat },
-                        label = { Text(cat.displayName) }
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            selectedCategory = cat
+                        },
+                        label = { Text(cat.displayName) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
+                            selectedLabelColor = ViralPurple
+                        )
                     )
                 }
             }
 
-            // Template Grid
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(16.dp),
@@ -77,18 +100,26 @@ fun TemplatesScreen(
                     TemplateCard(
                         template = template,
                         isSelected = selectedTemplate?.id == template.id,
-                        onClick = { selectedTemplate = template }
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            selectedTemplate = template
+                        }
                     )
                 }
             }
         }
 
-        // Template Detail Bottom Sheet
         selectedTemplate?.let { template ->
             TemplateDetailSheet(
                 template = template,
-                onDismiss = { selectedTemplate = null },
-                onApply = { selectedTemplate = null }
+                onDismiss = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    selectedTemplate = null
+                },
+                onApply = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    selectedTemplate = null
+                }
             )
         }
     }
@@ -101,6 +132,16 @@ private fun TemplateCard(
     onClick: () -> Unit
 ) {
     val colors = getTemplateColors(template.category)
+    val infiniteTransition = rememberInfiniteTransition(label = "glow")
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glow"
+    )
 
     Card(
         modifier = Modifier
@@ -112,16 +153,27 @@ private fun TemplateCard(
         border = if (isSelected) BorderStroke(2.dp, ViralPurple) else null
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Gradient background
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors.map { it.copy(alpha = 0.12f) }
+                            colors.map { it.copy(alpha = if (isSelected) 0.2f else 0.12f) }
                         )
                     )
             )
+
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.radialGradient(
+                                colors.map { it.copy(alpha = glowAlpha * 0.3f) }
+                            )
+                        )
+                )
+            }
 
             Column(
                 modifier = Modifier
@@ -129,14 +181,23 @@ private fun TemplateCard(
                     .padding(14.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Caption preview
-                Text(
-                    text = "Amazing\ncaption\nstyle",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    lineHeight = 22.sp
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            Brush.linearGradient(colors.map { it.copy(alpha = 0.3f) })
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Aa",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colors.first()
+                    )
+                }
 
                 Column {
                     Text(
@@ -163,6 +224,25 @@ private fun TemplateCard(
                     }
                 }
             }
+
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(24.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(ViralPurple),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -174,6 +254,8 @@ private fun TemplateDetailSheet(
     onDismiss: () -> Unit,
     onApply: () -> Unit
 ) {
+    val colors = getTemplateColors(template.category)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = DarkSurface,
@@ -184,36 +266,56 @@ private fun TemplateDetailSheet(
                 .fillMaxWidth()
                 .padding(24.dp)
         ) {
-            // Preview
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .height(180.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(DarkSurfaceElevated),
+                    .background(
+                        Brush.linearGradient(colors.map { it.copy(alpha = 0.3f) })
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         "Your caption\nappears here",
-                        fontSize = 24.sp,
+                        fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        color = colors.first()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Preview of ${template.name}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
                     )
                 }
             }
 
             Spacer(Modifier.height(20.dp))
 
-            Text(template.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Text(template.description, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(template.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(template.description, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                }
+            }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
+
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AssistChip(
                     onClick = {},
-                    label = { Text(template.category.displayName, fontSize = 12.sp) }
+                    label = { Text(template.category.displayName, fontSize = 12.sp) },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = colors.first().copy(alpha = 0.1f)
+                    )
                 )
                 if (template.isPremium) {
                     AssistChip(
@@ -221,6 +323,36 @@ private fun TemplateDetailSheet(
                         label = { Text("Premium", fontSize = 12.sp) },
                         colors = AssistChipDefaults.assistChipColors(containerColor = ViralOrange.copy(alpha = 0.1f))
                     )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Style Details", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        StyleDetail("Preset", template.captionStyle.preset.displayName)
+                        StyleDetail("Size", "${template.captionStyle.fontSize}sp")
+                        StyleDetail("Position", template.captionStyle.position.displayName)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        StyleDetail("Animation", template.captionStyle.animation.displayName)
+                        StyleDetail("Weight", template.captionStyle.fontWeight.name)
+                        StyleDetail("Case", template.captionStyle.caseStyle.name)
+                    }
                 }
             }
 
@@ -235,6 +367,14 @@ private fun TemplateDetailSheet(
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+}
+
+@Composable
+private fun StyleDetail(label: String, value: String) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = TextTertiary)
+        Text(value, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

@@ -16,6 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -23,16 +27,17 @@ import androidx.compose.ui.unit.sp
 import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.theme.*
 import com.viralclip.app.util.Extensions.maxDurationFormatted
+import com.viralclip.app.util.HapticFeedback
 import androidx.compose.ui.text.TextStyle
-
-// ─── Caption Style Preset Grid ───────────────────────────────────────
 
 @Composable
 fun CaptionStylePresetGrid(
     selectedPreset: CaptionPreset,
     onPresetSelected: (CaptionPreset) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Caption style presets"
 ) {
+    val context = LocalContext.current
     val presets = listOf(
         CaptionPreset.DEFAULT to listOf(ViralPurple, ViralBlue),
         CaptionPreset.BOLD_HIGHLIGHT to listOf(ViralYellow, ViralOrange),
@@ -50,7 +55,9 @@ fun CaptionStylePresetGrid(
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
-        modifier = modifier,
+        modifier = modifier.semantics {
+            this.contentDescription = contentDescription
+        },
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -59,7 +66,10 @@ fun CaptionStylePresetGrid(
                 preset = preset,
                 colors = colors,
                 isSelected = selectedPreset == preset,
-                onClick = { onPresetSelected(preset) }
+                onClick = {
+                    HapticFeedback.performSelection(context)
+                    onPresetSelected(preset)
+                }
             )
         }
     }
@@ -70,12 +80,23 @@ fun CaptionPresetCard(
     preset: CaptionPreset,
     colors: List<Color>,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    contentDescription: String = preset.displayName
 ) {
     Card(
         modifier = Modifier
             .aspectRatio(1f)
-            .clickable(onClick = onClick),
+            .clickable(
+                onClickLabel = "Select $contentDescription style"
+            ) { onClick() }
+            .semantics {
+                this.contentDescription = if (isSelected) {
+                    "$contentDescription, selected"
+                } else {
+                    contentDescription
+                }
+                role = Role.RadioButton
+            },
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) ViralPurple.copy(alpha = 0.15f)
@@ -91,7 +112,6 @@ fun CaptionPresetCard(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(8.dp)
             ) {
-                // Preview text with style
                 if (colors.size > 1) {
                     Text(
                         text = "Aa",
@@ -139,8 +159,6 @@ fun CaptionPresetCard(
     }
 }
 
-// ─── Color Picker Row ────────────────────────────────────────────────
-
 @Composable
 fun ColorPickerRow(
     selectedColor: Long,
@@ -150,13 +168,18 @@ fun ColorPickerRow(
         0xFFFFFFFF, 0xFFFBBF24, 0xFF34D399, 0xFF60A5FA,
         0xFFF472B6, 0xFFA78BFA, 0xFFEF4444, 0xFFF97316,
         0xFF06B6D4, 0xFF10B981, 0xFF000000, 0xFF7C3AED
-    )
+    ),
+    contentDescription: String = "Color picker"
 ) {
+    val context = LocalContext.current
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { this.contentDescription = contentDescription },
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        colors.forEach { color ->
+        colors.forEachIndexed { index, color ->
+            val colorName = getColorName(color)
             Box(
                 modifier = Modifier
                     .size(36.dp)
@@ -167,13 +190,40 @@ fun ColorPickerRow(
                             Modifier.border(3.dp, Color.White, CircleShape)
                         } else Modifier
                     )
-                    .clickable { onColorSelected(color) }
+                    .clickable {
+                        HapticFeedback.performSelection(context)
+                        onColorSelected(color)
+                    }
+                    .semantics {
+                        this.contentDescription = if (color == selectedColor) {
+                            "$colorName, selected"
+                        } else {
+                            colorName
+                        }
+                        role = Role.RadioButton
+                    }
             )
         }
     }
 }
 
-// ─── Slider Setting Row ──────────────────────────────────────────────
+private fun getColorName(color: Long): String {
+    return when (color) {
+        0xFFFFFFFF -> "White"
+        0xFF000000 -> "Black"
+        0xFFFBBF24 -> "Yellow"
+        0xFF34D399 -> "Green"
+        0xFF60A5FA -> "Blue"
+        0xFFF472B6 -> "Pink"
+        0xFFA78BFA -> "Purple"
+        0xFFEF4444 -> "Red"
+        0xFFF97316 -> "Orange"
+        0xFF06B6D4 -> "Cyan"
+        0xFF10B981 -> "Emerald"
+        0xFF7C3AED -> "Violet"
+        else -> "Custom"
+    }
+}
 
 @Composable
 fun SliderSettingRow(
@@ -182,20 +232,40 @@ fun SliderSettingRow(
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     modifier: Modifier = Modifier,
-    valueText: String = "${(value * 100).toInt()}%"
+    valueText: String = "${(value * 100).toInt()}%",
+    contentDescription: String = label
 ) {
+    val context = LocalContext.current
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-            Text(valueText, style = MaterialTheme.typography.bodySmall, color = ViralPurple)
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary,
+                modifier = Modifier.semantics { heading() }
+            )
+            Text(
+                valueText,
+                style = MaterialTheme.typography.bodySmall,
+                color = ViralPurple,
+                modifier = Modifier.semantics {
+                    this.contentDescription = "$label is $valueText"
+                }
+            )
         }
         Slider(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { newValue ->
+                HapticFeedback.performSelection(context)
+                onValueChange(newValue)
+            },
             valueRange = valueRange,
+            modifier = Modifier.semantics {
+                this.contentDescription = contentDescription
+            },
             colors = SliderDefaults.colors(
                 thumbColor = ViralPurple,
                 activeTrackColor = ViralPurple,
@@ -205,33 +275,57 @@ fun SliderSettingRow(
     }
 }
 
-// ─── Toggle Setting Row ──────────────────────────────────────────────
-
 @Composable
 fun ToggleSettingRow(
     title: String,
     subtitle: String? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    icon: @Composable (() -> Unit)? = null,
+    contentDescription: String = title
 ) {
+    val context = LocalContext.current
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(vertical = 8.dp),
+            .clickable {
+                HapticFeedback.performToggle(context, !checked)
+                onCheckedChange(!checked)
+            }
+            .padding(vertical = 8.dp)
+            .semantics {
+                this.contentDescription = if (checked) {
+                    "$contentDescription, enabled"
+                } else {
+                    "$contentDescription, disabled"
+                }
+                role = Role.Switch
+            },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
-            subtitle?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                icon()
+                Spacer(Modifier.width(12.dp))
+            }
+            Column {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                subtitle?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                }
             }
         }
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = { newValue ->
+                HapticFeedback.performToggle(context, newValue)
+                onCheckedChange(newValue)
+            },
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
                 checkedTrackColor = ViralPurple,
@@ -242,15 +336,15 @@ fun ToggleSettingRow(
     }
 }
 
-// ─── Platform Selection Grid ─────────────────────────────────────────
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PlatformSelectionGrid(
     selectedPlatform: PlatformPreset,
     onPlatformSelected: (PlatformPreset) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Platform selection"
 ) {
+    val context = LocalContext.current
     val platforms = listOf(
         PlatformPreset.TIKTOK,
         PlatformPreset.INSTAGRAM_REELS,
@@ -261,7 +355,7 @@ fun PlatformSelectionGrid(
         PlatformPreset.PINTEREST
     )
 
-    Column(modifier = modifier) {
+    Column(modifier = modifier.semantics { this.contentDescription = contentDescription }) {
         Text(
             "Select Platform",
             style = MaterialTheme.typography.titleSmall,
@@ -276,14 +370,16 @@ fun PlatformSelectionGrid(
                 PlatformChip(
                     platform = platform,
                     isSelected = selectedPlatform == platform,
-                    onClick = { onPlatformSelected(platform) }
+                    onClick = {
+                        HapticFeedback.performSelection(context)
+                        onPlatformSelected(platform)
+                    }
                 )
             }
         }
 
         Spacer(Modifier.height(16.dp))
 
-        // Platform info
         Card(
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = DarkSurfaceHighest)
@@ -291,7 +387,15 @@ fun PlatformSelectionGrid(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
+                    .padding(14.dp)
+                    .semantics {
+                        this.contentDescription = buildString {
+                            append("Platform details: ")
+                            append("Resolution ${selectedPlatform.width} by ${selectedPlatform.height}, ")
+                            append("Aspect ratio ${selectedPlatform.aspectRatio}, ")
+                            append("Maximum duration ${selectedPlatform.maxDurationFormatted()}")
+                        }
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
@@ -308,5 +412,246 @@ fun PlatformSelectionGrid(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun CaptionPositionPicker(
+    selectedPosition: CaptionPosition,
+    onPositionSelected: (CaptionPosition) -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Caption position"
+) {
+    val context = LocalContext.current
+    val positions = listOf(
+        CaptionPosition.TOP to Icons.Filled.ArrowUpward,
+        CaptionPosition.CENTER to Icons.Filled.CenterFocusWeak,
+        CaptionPosition.BOTTOM to Icons.Filled.ArrowDownward
+    )
+
+    Column(modifier = modifier) {
+        Text(
+            "Position",
+            style = MaterialTheme.typography.titleSmall,
+            color = TextSecondary,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            positions.forEach { (position, icon) ->
+                val isSelected = selectedPosition == position
+                FilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        HapticFeedback.performSelection(context)
+                        onPositionSelected(position)
+                    },
+                    label = { Text(position.displayName) },
+                    leadingIcon = {
+                        Icon(
+                            icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    modifier = Modifier.semantics {
+                        this.contentDescription = if (isSelected) {
+                            "${position.displayName}, selected"
+                        } else {
+                            position.displayName
+                        }
+                        role = Role.RadioButton
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
+                        selectedLabelColor = ViralPurple,
+                        selectedLeadingIconColor = ViralPurple
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AnimationPicker(
+    selectedAnimation: CaptionAnimation,
+    onAnimationSelected: (CaptionAnimation) -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Caption animation"
+) {
+    val context = LocalContext.current
+    val animations = CaptionAnimation.entries.filter { it != CaptionAnimation.NONE }
+
+    LazyRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(animations.size) { index ->
+            val animation = animations[index]
+            val isSelected = selectedAnimation == animation
+            FilterChip(
+                selected = isSelected,
+                onClick = {
+                    HapticFeedback.performSelection(context)
+                    onAnimationSelected(animation)
+                },
+                label = { Text(animation.displayName, fontSize = 12.sp) },
+                modifier = Modifier.semantics {
+                    this.contentDescription = if (isSelected) {
+                        "${animation.displayName}, selected"
+                    } else {
+                        animation.displayName
+                    }
+                    role = Role.RadioButton
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
+                    selectedLabelColor = ViralPurple
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun AlignmentPicker(
+    selectedAlignment: Alignment,
+    onAlignmentSelected: (Alignment) -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Text alignment"
+) {
+    val context = LocalContext.current
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Alignment.entries.forEach { alignment ->
+            val isSelected = selectedAlignment == alignment
+            val icon = when (alignment) {
+                Alignment.LEFT -> Icons.Filled.FormatAlignLeft
+                Alignment.CENTER -> Icons.Filled.FormatAlignCenter
+                Alignment.RIGHT -> Icons.Filled.FormatAlignRight
+            }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (isSelected) ViralPurple.copy(alpha = 0.15f)
+                        else DarkSurfaceHighest
+                    )
+                    .clickable {
+                        HapticFeedback.performSelection(context)
+                        onAlignmentSelected(alignment)
+                    }
+                    .semantics {
+                        this.contentDescription = if (isSelected) {
+                            "${alignment.name.lowercase()} alignment, selected"
+                        } else {
+                            "${alignment.name.lowercase()} alignment"
+                        }
+                        role = Role.RadioButton
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = if (isSelected) ViralPurple else TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FontSizeSlider(
+    value: Int,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    minSize: Int = 16,
+    maxSize: Int = 64,
+    contentDescription: String = "Font size"
+) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Font Size",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary
+            )
+            Text(
+                "${value}px",
+                style = MaterialTheme.typography.bodySmall,
+                color = ViralPurple,
+                modifier = Modifier.semantics {
+                    this.contentDescription = "Font size is $value pixels"
+                }
+            )
+        }
+        Slider(
+            value = value.toFloat(),
+            onValueChange = { onValueChange(it.toInt()) },
+            valueRange = minSize.toFloat()..maxSize.toFloat(),
+            steps = maxSize - minSize - 1,
+            modifier = Modifier.semantics {
+                this.contentDescription = contentDescription
+            },
+            colors = SliderDefaults.colors(
+                thumbColor = ViralPurple,
+                activeTrackColor = ViralPurple,
+                inactiveTrackColor = ViralPurple.copy(alpha = 0.15f)
+            )
+        )
+    }
+}
+
+@Composable
+fun PreviewCaption(
+    text: String,
+    style: CaptionStyle,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(80.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(CanvasBackground)
+            .padding(16.dp),
+        contentAlignment = when (style.position) {
+            CaptionPosition.TOP -> Alignment.TopCenter
+            CaptionPosition.CENTER -> Alignment.Center
+            CaptionPosition.BOTTOM, CaptionPosition.CUSTOM -> Alignment.BottomCenter
+        }
+    ) {
+        Text(
+            text = text,
+            style = TextStyle(
+                fontSize = (style.fontSize * 0.5f).sp,
+                fontWeight = when (style.fontWeight) {
+                    FontWeight.LIGHT -> androidx.compose.ui.text.font.FontWeight.Light
+                    FontWeight.NORMAL -> androidx.compose.ui.text.font.FontWeight.Normal
+                    FontWeight.MEDIUM -> androidx.compose.ui.text.font.FontWeight.Medium
+                    FontWeight.SEMI_BOLD -> androidx.compose.ui.text.font.FontWeight.SemiBold
+                    FontWeight.BOLD -> androidx.compose.ui.text.font.FontWeight.Bold
+                    FontWeight.EXTRA_BOLD -> androidx.compose.ui.text.font.FontWeight.ExtraBold
+                },
+                color = Color(style.fontColor)
+            ),
+            textAlign = when (style.alignment) {
+                Alignment.LEFT -> TextAlign.Left
+                Alignment.CENTER -> TextAlign.Center
+                Alignment.RIGHT -> TextAlign.Right
+            }
+        )
     }
 }

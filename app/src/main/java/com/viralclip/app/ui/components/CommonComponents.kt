@@ -18,7 +18,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,6 +33,24 @@ import androidx.compose.ui.unit.sp
 import com.viralclip.app.R
 import com.viralclip.app.domain.model.*
 import com.viralclip.app.ui.theme.*
+import com.viralclip.app.util.HapticFeedback
+
+// ─── Accessibility Utilities ──────────────────────────────────────────
+
+@Composable
+fun Modifier.withAccessibility(
+    label: String? = null,
+    hint: String? = null,
+    isHeading: Boolean = false,
+    role: Role? = null,
+    enabled: Boolean = true
+): Modifier = this.semantics {
+    label?.let { contentDescription = it }
+    hint?.let { this.hint = it }
+    if (isHeading) this.heading()
+    role?.let { this.role = it }
+    this.disabled()
+}
 
 // ─── Gradient Button ─────────────────────────────────────────────────
 
@@ -37,14 +61,24 @@ fun GradientButton(
     modifier: Modifier = Modifier,
     gradient: Brush = Brush.horizontalGradient(listOf(ViralPurple, ViralPink)),
     enabled: Boolean = true,
-    icon: ImageVector? = null
+    icon: ImageVector? = null,
+    isLoading: Boolean = false,
+    contentDescription: String = text
 ) {
+    val context = LocalContext.current
+
     Button(
-        onClick = onClick,
+        onClick = {
+            if (enabled && !isLoading) {
+                HapticFeedback.performMediumClick(context)
+                onClick()
+            }
+        },
         modifier = modifier
             .height(52.dp)
-            .clip(RoundedCornerShape(14.dp)),
-        enabled = enabled,
+            .clip(RoundedCornerShape(14.dp))
+            .semantics { this.contentDescription = contentDescription },
+        enabled = enabled && !isLoading,
         colors = ButtonDefaults.buttonColors(
             containerColor = Color.Transparent,
             contentColor = Color.White,
@@ -67,17 +101,146 @@ fun GradientButton(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (icon != null) {
-                    Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    if (icon != null) {
+                        Icon(
+                            icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Text(
+                        text = text,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    )
                 }
-                Text(
-                    text = text,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp
-                )
             }
         }
+    }
+}
+
+// ─── Icon Button ──────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ViralIconButton(
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String,
+    enabled: Boolean = true,
+    tint: Color = TextPrimary,
+    containerColor: Color = DarkSurfaceElevated
+) {
+    val context = LocalContext.current
+
+    IconButton(
+        onClick = {
+            HapticFeedback.performLightClick(context)
+            onClick()
+        },
+        modifier = modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(containerColor)
+            .semantics { this.contentDescription = contentDescription },
+        enabled = enabled
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = if (enabled) tint else tint.copy(alpha = 0.4f)
+        )
+    }
+}
+
+// ─── Outline Button ───────────────────────────────────────────────────
+
+@Composable
+fun OutlineButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    contentDescription: String = text
+) {
+    val context = LocalContext.current
+
+    OutlinedButton(
+        onClick = {
+            HapticFeedback.performLightClick(context)
+            onClick()
+        },
+        modifier = modifier
+            .height(52.dp)
+            .semantics { this.contentDescription = contentDescription },
+        enabled = enabled,
+        shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = ViralPurple,
+            disabledContentColor = TextTertiary
+        ),
+        border = ButtonDefaults.outlinedButtonBorder(enabled = enabled)
+    ) {
+        if (icon != null) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(
+            text = text,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp
+        )
+    }
+}
+
+// ─── Text Button ─────────────────────────────────────────────────────
+
+@Composable
+fun ViralTextButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+    contentDescription: String = text
+) {
+    val context = LocalContext.current
+
+    TextButton(
+        onClick = {
+            HapticFeedback.performLightClick(context)
+            onClick()
+        },
+        modifier = modifier.semantics { this.contentDescription = contentDescription },
+        enabled = enabled
+    ) {
+        if (icon != null) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(6.dp))
+        }
+        Text(
+            text = text,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp
+        )
     }
 }
 
@@ -86,7 +249,8 @@ fun GradientButton(
 @Composable
 fun ViralityScoreCard(
     score: ViralityScore,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Virality score: ${score.label}, ${(score.overall * 100).toInt()} percent"
 ) {
     val animatedScore by animateFloatAsState(
         targetValue = score.overall,
@@ -101,7 +265,9 @@ fun ViralityScoreCard(
     }
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { this.contentDescription = contentDescription },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = DarkSurfaceElevated
@@ -110,7 +276,6 @@ fun ViralityScoreCard(
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            // Score Circle
             Box(
                 modifier = Modifier
                     .size(100.dp)
@@ -141,26 +306,51 @@ fun ViralityScoreCard(
 
             Spacer(Modifier.height(16.dp))
 
-            // Score breakdown
-            ScoreBar("Hook Strength", score.hookStrength, ViralPurple)
+            ScoreBar(
+                label = "Hook Strength",
+                value = score.hookStrength,
+                color = ViralPurple,
+                contentDescription = "Hook strength: ${(score.hookStrength * 100).toInt()} percent"
+            )
             Spacer(Modifier.height(8.dp))
-            ScoreBar("Engagement", score.engagementPotential, ViralBlue)
+            ScoreBar(
+                label = "Engagement",
+                value = score.engagementPotential,
+                color = ViralBlue,
+                contentDescription = "Engagement potential: ${(score.engagementPotential * 100).toInt()} percent"
+            )
             Spacer(Modifier.height(8.dp))
-            ScoreBar("Emotional Impact", score.emotionalImpact, ViralPink)
+            ScoreBar(
+                label = "Emotional Impact",
+                value = score.emotionalImpact,
+                color = ViralPink,
+                contentDescription = "Emotional impact: ${(score.emotionalImpact * 100).toInt()} percent"
+            )
             Spacer(Modifier.height(8.dp))
-            ScoreBar("Shareability", score.shareability, ViralCyan)
+            ScoreBar(
+                label = "Shareability",
+                value = score.shareability,
+                color = ViralCyan,
+                contentDescription = "Shareability: ${(score.shareability * 100).toInt()} percent"
+            )
             Spacer(Modifier.height(8.dp))
-            ScoreBar("Watch Time", score.watchTime, ViralGreen)
+            ScoreBar(
+                label = "Watch Time",
+                value = score.watchTime,
+                color = ViralGreen,
+                contentDescription = "Watch time: ${(score.watchTime * 100).toInt()} percent"
+            )
 
             if (score.reasons.isNotEmpty()) {
                 Spacer(Modifier.height(16.dp))
                 Text(
                     "Why this clip",
                     style = MaterialTheme.typography.titleSmall,
-                    color = TextSecondary
+                    color = TextSecondary,
+                    modifier = Modifier.semantics { heading() }
                 )
                 Spacer(Modifier.height(8.dp))
-                score.reasons.forEach { reason ->
+                score.reasons.forEachIndexed { index, reason ->
                     Row(
                         modifier = Modifier.padding(vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -175,7 +365,10 @@ fun ViralityScoreCard(
                         Text(
                             reason,
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
+                            color = TextSecondary,
+                            modifier = Modifier.semantics {
+                                contentDescription = "Reason ${index + 1}: $reason"
+                            }
                         )
                     }
                 }
@@ -185,9 +378,16 @@ fun ViralityScoreCard(
 }
 
 @Composable
-private fun ScoreBar(label: String, value: Float, color: Color) {
+private fun ScoreBar(
+    label: String,
+    value: Float,
+    color: Color,
+    contentDescription: String
+) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { this.contentDescription = contentDescription },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -234,7 +434,8 @@ fun ClipCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
-    showScore: Boolean = true
+    showScore: Boolean = true,
+    contentDescription: String = clip.name
 ) {
     val borderColor = when {
         isSelected -> ViralPurple
@@ -246,7 +447,23 @@ fun ClipCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(
+                onClickLabel = "Open $contentDescription"
+            ) { onClick() }
+            .semantics {
+                this.contentDescription = buildString {
+                    append(contentDescription)
+                    append(", ")
+                    append("duration ${clip.durationMs / 1000} seconds")
+                    if (clip.captions.isNotEmpty()) {
+                        append(", ${clip.captions.size} captions")
+                    }
+                    if (showScore) {
+                        append(", virality score ${(clip.viralityScore * 100).toInt()} percent")
+                    }
+                }
+                role = Role.Button
+            },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) ViralPurple.copy(alpha = 0.1f)
@@ -260,7 +477,6 @@ fun ClipCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Thumbnail placeholder
             Box(
                 modifier = Modifier
                     .size(64.dp)
@@ -354,12 +570,14 @@ fun ClipCard(
 fun SectionHeader(
     title: String,
     modifier: Modifier = Modifier,
-    action: @Composable (() -> Unit)? = null
+    action: @Composable (() -> Unit)? = null,
+    actionLabel: String? = null
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 20.dp)
+            .semantics { heading() },
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -381,12 +599,14 @@ fun EmptyState(
     title: String,
     message: String,
     modifier: Modifier = Modifier,
-    action: @Composable (() -> Unit)? = null
+    action: @Composable (() -> Unit)? = null,
+    contentDescription: String = "$title. $message"
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(40.dp),
+            .padding(40.dp)
+            .semantics { this.contentDescription = contentDescription },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -432,19 +652,26 @@ fun EmptyState(
 fun GradientTopBar(
     title: String,
     onBack: (() -> Unit)? = null,
-    actions: @Composable RowScope.() -> Unit = {}
+    actions: @Composable RowScope.() -> Unit = {},
+    contentDescription: String = title
 ) {
     TopAppBar(
         title = {
             Text(
                 title,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.semantics { heading() }
             )
         },
         navigationIcon = {
             if (onBack != null) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Filled.ArrowBack, stringResource(R.string.nav_back))
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.semantics {
+                        contentDescription = "Go back"
+                    }
+                ) {
+                    Icon(Icons.Filled.ArrowBack, contentDescription = null)
                 }
             }
         },
@@ -464,8 +691,10 @@ fun GradientTopBar(
 fun PlatformChip(
     platform: PlatformPreset,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    contentDescription: String = platform.displayName
 ) {
+    val context = LocalContext.current
     val platformColor = when (platform) {
         PlatformPreset.TIKTOK -> TikTokColor
         PlatformPreset.INSTAGRAM_REELS, PlatformPreset.INSTAGRAM_STORY, PlatformPreset.INSTAGRAM_FEED -> InstagramColor
@@ -478,8 +707,19 @@ fun PlatformChip(
 
     FilterChip(
         selected = isSelected,
-        onClick = onClick,
+        onClick = {
+            HapticFeedback.performSelection(context)
+            onClick()
+        },
         label = { Text(platform.displayName, fontSize = 12.sp) },
+        modifier = Modifier.semantics {
+            this.contentDescription = if (isSelected) {
+                "$contentDescription, selected"
+            } else {
+                contentDescription
+            }
+            role = Role.RadioButton
+        },
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = platformColor.copy(alpha = 0.15f),
             selectedLabelColor = platformColor
@@ -534,12 +774,12 @@ fun ProcessingOverlay(
                 Spacer(Modifier.height(20.dp))
                 val message = when (state) {
                     is ProcessingState.Analyzing -> state.message
-                    is ProcessingState.Transcribing -> "Transcribing audio…"
-                    is ProcessingState.DetectingFaces -> "Detecting faces…"
-                    is ProcessingState.ScoringVirality -> "Scoring virality…"
-                    is ProcessingState.GeneratingClips -> "Generating clips…"
-                    is ProcessingState.ApplyingCaptions -> "Applying captions…"
-                    is ProcessingState.Exporting -> "Exporting…"
+                    is ProcessingState.Transcribing -> "Transcribing audio..."
+                    is ProcessingState.DetectingFaces -> "Detecting faces..."
+                    is ProcessingState.ScoringVirality -> "Scoring virality..."
+                    is ProcessingState.GeneratingClips -> "Generating clips..."
+                    is ProcessingState.ApplyingCaptions -> "Applying captions..."
+                    is ProcessingState.Exporting -> "Exporting..."
                     is ProcessingState.Error -> "Error: ${state.message}"
                     ProcessingState.Complete -> "Complete!"
                     ProcessingState.Idle -> ""
@@ -547,7 +787,10 @@ fun ProcessingOverlay(
                 Text(
                     message,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.semantics {
+                        contentDescription = "Processing status: $message"
+                    }
                 )
                 Spacer(Modifier.height(12.dp))
                 val progress = when (state) {
@@ -574,10 +817,211 @@ fun ProcessingOverlay(
                     Text(
                         "${(progress * 100).toInt()}%",
                         style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary
+                        color = TextSecondary,
+                        modifier = Modifier.semantics {
+                            contentDescription = "${(progress * 100).toInt()} percent complete"
+                        }
                     )
                 }
             }
         }
     }
+}
+
+// ─── Info Card ──────────────────────────────────────────────────────
+
+@Composable
+fun InfoCard(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = DarkSurfaceHighest,
+    iconTint: Color = ViralPurple,
+    onClick: (() -> Unit)? = null
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (onClick != null) Modifier.clickable(onClick = onClick)
+                else Modifier
+            ),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(iconTint.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+            if (onClick != null) {
+                Icon(
+                    Icons.Filled.ChevronRight,
+                    contentDescription = null,
+                    tint = TextTertiary
+                )
+            }
+        }
+    }
+}
+
+// ─── Loading Indicator ───────────────────────────────────────────────
+
+@Composable
+fun LoadingIndicator(
+    modifier: Modifier = Modifier,
+    size: Int = 48,
+    strokeWidth: Int = 4,
+    color: Color = ViralPurple,
+    contentDescription: String = "Loading"
+) {
+    CircularProgressIndicator(
+        modifier = modifier.semantics { this.contentDescription = contentDescription },
+        modifier = Modifier.size(size.dp),
+        color = color,
+        strokeWidth = strokeWidth.dp
+    )
+}
+
+// ─── Shimmer Loading Card ────────────────────────────────────────────
+
+@Composable
+fun ShimmerLoadingCard(
+    modifier: Modifier = Modifier
+) {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val alpha by transition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shimmerAlpha"
+    )
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(ShimmerBase.copy(alpha = alpha))
+            )
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .height(16.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(ShimmerBase.copy(alpha = alpha))
+                )
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.4f)
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(ShimmerBase.copy(alpha = alpha))
+                )
+            }
+        }
+    }
+}
+
+// ─── Toggle Chip ────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ToggleChip(
+    label: String,
+    isSelected: Boolean,
+    onToggle: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    contentDescription: String = label
+) {
+    val context = LocalContext.current
+
+    FilterChip(
+        selected = isSelected,
+        onClick = {
+            HapticFeedback.performToggle(context, !isSelected)
+            onToggle(!isSelected)
+        },
+        label = { Text(label) },
+        modifier = modifier.semantics {
+            this.contentDescription = if (isSelected) {
+                "$contentDescription, enabled"
+            } else {
+                "$contentDescription, disabled"
+            }
+            role = Role.Checkbox
+        },
+        leadingIcon = if (icon != null && isSelected) {
+            {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        } else null,
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = ViralPurple.copy(alpha = 0.15f),
+            selectedLabelColor = ViralPurple,
+            selectedLeadingIconColor = ViralPurple
+        )
+    )
+}
+
+// ─── Bottom Sheet Handle ─────────────────────────────────────────────
+
+@Composable
+fun BottomSheetHandle(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .width(40.dp)
+            .height(4.dp)
+            .clip(RoundedCornerShape(2.dp))
+            .background(TextTertiary)
+            .semantics { contentDescription = "Drag handle to resize" }
+    )
 }

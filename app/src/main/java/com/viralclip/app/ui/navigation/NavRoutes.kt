@@ -20,8 +20,8 @@ sealed class Screen(val route: String) {
         fun createRoute(templateId: Long) = "template/$templateId"
     }
     data object Brand : Screen("brand")
-    data object BrandEditor : Screen("brand/{brandId}") {
-        fun createRoute(brandId: Long = -1L) = "brand/$brandId"
+    data object BrandEditor : Screen("brand-editor/{brandId}") {
+        fun createRoute(brandId: Long = -1L) = "brand-editor/$brandId"
     }
     data object Settings : Screen("settings")
 }

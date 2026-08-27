@@ -17,6 +17,7 @@ import com.viralclip.app.ui.screens.preview.PreviewScreen
 import com.viralclip.app.ui.screens.export.ExportScreen
 import com.viralclip.app.ui.screens.templates.TemplatesScreen
 import com.viralclip.app.ui.screens.brand.BrandScreen
+import com.viralclip.app.ui.screens.brand.BrandEditorScreen
 import com.viralclip.app.ui.screens.settings.SettingsScreen
 import com.viralclip.app.ui.screens.projects.ProjectsScreen
 
@@ -159,6 +160,33 @@ fun ViralClipNavHost(
                 onNavigateToEditor = { brandId ->
                     navController.navigate(Screen.BrandEditor.createRoute(brandId))
                 }
+            )
+        }
+
+        composable(
+            route = Screen.BrandEditor.route,
+            arguments = listOf(
+                navArgument("brandId") { type = NavType.LongType; defaultValue = -1L }
+            )
+        ) { backStackEntry ->
+            val brandId = backStackEntry.arguments?.getLong("brandId") ?: -1L
+            val brandViewModel: com.viralclip.app.ui.viewmodels.BrandViewModel = hiltViewModel()
+            BrandEditorScreen(
+                brandId = brandId,
+                onNavigateBack = { navController.popBackStack() },
+                onSave = { preset ->
+                    if (brandId > 0) {
+                        brandViewModel.updatePreset(preset)
+                    } else {
+                        brandViewModel.createPreset(
+                            name = preset.name,
+                            primaryColor = preset.primaryColor,
+                            secondaryColor = preset.secondaryColor,
+                            accentColor = preset.accentColor
+                        )
+                    }
+                },
+                viewModel = brandViewModel
             )
         }
 

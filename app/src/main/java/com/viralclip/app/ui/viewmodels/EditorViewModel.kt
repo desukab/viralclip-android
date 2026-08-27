@@ -150,6 +150,36 @@ class EditorViewModel @Inject constructor(
         }
     }
 
+    // ─── Volume ──────────────────────────────────────
+
+    fun updateVolume(clipId: Long, volume: Float) {
+        viewModelScope.launch {
+            val clip = _uiState.value.clips.find { it.id == clipId } ?: return@launch
+            clipRepository.updateClip(clip.copy(volume = volume.coerceIn(0f, 1f)))
+        }
+    }
+
+    fun toggleMute(clipId: Long) {
+        viewModelScope.launch {
+            val clip = _uiState.value.clips.find { it.id == clipId } ?: return@launch
+            clipRepository.updateClip(clip.copy(isMuted = !clip.isMuted))
+        }
+    }
+
+    // ─── Text Overlays ──────────────────────────────────────
+
+    fun addTextOverlay(clipId: Long, text: String) {
+        viewModelScope.launch {
+            val clip = _uiState.value.clips.find { it.id == clipId } ?: return@launch
+            val overlay = TextOverlay(
+                text = text,
+                startTimeMs = clip.startTimeMs,
+                endTimeMs = clip.endTimeMs
+            )
+            clipRepository.updateClip(clip.copy(textOverlays = clip.textOverlays + overlay))
+        }
+    }
+
     // ─── Filters ──────────────────────────────────────
 
     fun updateFilters(clipId: Long, filters: ClipFilters) {

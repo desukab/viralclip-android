@@ -1,6 +1,7 @@
 package com.viralclip.app.ui.viewmodels
 
 import com.viralclip.app.core.video.FFmpegProcessor
+import com.viralclip.app.domain.model.Clip
 import com.viralclip.app.domain.model.ProcessingState
 import com.viralclip.app.domain.model.Project
 import com.viralclip.app.domain.repository.ClipRepository
@@ -39,13 +40,15 @@ class HomeViewModelTest {
         ffmpegProcessor = mockk(relaxed = true)
         Dispatchers.setMain(testDispatcher)
         pipelineStateFlow = MutableStateFlow(ProcessingState.Idle)
-        every { projectRepository.getRecentProjects(10) } returns flowOf(emptyList())
+        every { projectRepository.getRecentProjects(any()) } returns flowOf(emptyList())
+        every { clipRepository.getAllClips() } returns flowOf(emptyList())
         every { pipeline.state } returns pipelineStateFlow
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkAll()
     }
 
     private fun createViewModel() = HomeViewModel(projectRepository, clipRepository, pipeline, ffmpegProcessor)
@@ -58,6 +61,7 @@ class HomeViewModelTest {
         assertTrue("Initial projects should be empty", state.recentProjects.isEmpty())
         assertNull("No error initially", state.errorMessage)
         assertFalse("Import dialog hidden initially", state.showImportDialog)
+        assertFalse("Delete confirmation hidden initially", state.showDeleteConfirmation == null)
     }
 
     @Test
@@ -68,13 +72,14 @@ class HomeViewModelTest {
             Project(id = 2L, name = "Project 2", sourceVideoUri = "c2",
                 duration = 10000L, createdAt = 0L, updatedAt = 0L)
         )
-        every { projectRepository.getRecentProjects(10) } returns flowOf(projects)
+        every { projectRepository.getRecentProjects(50) } returns flowOf(projects)
 
         viewModel = createViewModel()
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
         assertEquals("Should have 2 projects", 2, state.recentProjects.size)
+        assertEquals(2, state.totalVideosProcessed)
     }
 
     @Test
@@ -92,7 +97,6 @@ class HomeViewModelTest {
     fun `dismissError clears error message`() = runTest {
         viewModel = createViewModel()
         viewModel.dismissError()
-        // Should not crash, error is already null
         assertNull(viewModel.uiState.value.errorMessage)
     }
 
@@ -131,5 +135,121 @@ class HomeViewModelTest {
 
         assertTrue("Should reflect idle state",
             viewModel.uiState.value.processingState is ProcessingState.Idle)
+    }
+
+    @Test
+    fun `pipeline complete state sets isProcessing to false`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        pipelineStateFlow.value = ProcessingState.Analyzing(progress = 0.5f)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isProcessing)
+
+        pipelineStateFlow.value = ProcessingState.Complete
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isProcessing)
+    }
+
+    @Test
+    fun `pipeline error state sets isProcessing to false`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        pipelineStateFlow.value = ProcessingState.Analyzing(progress = 0.5f)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isProcessing)
+
+        pipelineStateFlow.value = ProcessingState.Error("Something failed")
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isProcessing)
+    }
+
+    @Test
+    fun `showDeleteConfirmation sets projectId`() = runTest {
+        viewModel = createViewModel()
+        viewModel.showDeleteConfirmation(42L)
+        assertEquals(42L, viewModel.uiState.value.showDeleteConfirmation)
+    }
+
+    @Test
+    fun `dismissDeleteConfirmation clears projectId`() = runTest {
+        viewModel = createViewModel()
+        viewModel.showDeleteConfirmation(42L)
+        viewModel.dismissDeleteConfirmation()
+        assertNull(viewModel.uiState.value.showDeleteConfirmation)
+    }
+
+    @Test
+    fun `dismissProcessing resets to idle`() = runTest {
+        viewModel = createViewModel()
+        pipelineStateFlow.value = ProcessingState.Analyzing(progress = 0.5f)
+        advanceUntilIdle()
+
+        viewModel.dismissProcessing()
+        assertTrue(viewModel.uiState.value.processingState is ProcessingState.Idle)
+    }
+
+    @Test
+    fun `pipeline transcribing state reflected`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        pipelineStateFlow.value = ProcessingState.Transcribing(progress = 0.3f)
+        advanceUntilIdle()
+
+        assertTrue("Should reflect transcribing state",
+            viewModel.uiState.value.processingState is ProcessingState.Transcribing)
+    }
+
+    @Test
+    fun `pipeline detectingFaces state reflected`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        pipelineStateFlow.value = ProcessingState.DetectingFaces(progress = 0.4f)
+        advanceUntilIdle()
+
+        assertTrue("Should reflect detecting faces state",
+            viewModel.uiState.value.processingState is ProcessingState.DetectingFaces)
+    }
+
+    @Test
+    fun `pipeline scoringVirality state reflected`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        pipelineStateFlow.value = ProcessingState.ScoringVirality(progress = 0.6f)
+        advanceUntilIdle()
+
+        assertTrue("Should reflect scoring state",
+            viewModel.uiState.value.processingState is ProcessingState.ScoringVirality)
+    }
+
+    @Test
+    fun `pipeline generatingClips state reflected`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        pipelineStateFlow.value = ProcessingState.GeneratingClips(progress = 0.8f)
+        advanceUntilIdle()
+
+        assertTrue("Should reflect generating clips state",
+            viewModel.uiState.value.processingState is ProcessingState.GeneratingClips)
+    }
+
+    @Test
+    fun `totalClipsCreated updates with clip count`() = runTest {
+        val clips = listOf(
+            Clip(id = 1L, projectId = 1L, name = "C1", sourceVideoUri = "u", startTimeMs = 0L, endTimeMs = 1000L),
+            Clip(id = 2L, projectId = 1L, name = "C2", sourceVideoUri = "u", startTimeMs = 0L, endTimeMs = 1000L),
+            Clip(id = 3L, projectId = 1L, name = "C3", sourceVideoUri = "u", startTimeMs = 0L, endTimeMs = 1000L)
+        )
+        every { clipRepository.getAllClips() } returns flowOf(clips)
+
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(3, viewModel.uiState.value.totalClipsCreated)
     }
 }

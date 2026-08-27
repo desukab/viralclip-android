@@ -7,6 +7,7 @@ import com.viralclip.app.domain.repository.ProjectRepository
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.*
@@ -24,6 +25,19 @@ class ExportViewModelTest {
 
     private lateinit var viewModel: ExportViewModel
 
+    private val sampleClip = Clip(
+        id = 10L, projectId = 1L, name = "Test Clip",
+        sourceVideoUri = "content://test",
+        startTimeMs = 0L, endTimeMs = 30000L,
+        viralityScore = 0.85f
+    )
+
+    private val sampleProject = Project(
+        id = 1L, name = "Test Project",
+        sourceVideoUri = "content://test",
+        duration = 60000L
+    )
+
     @Before
     fun setup() {
         clipRepository = mockk(relaxed = true)
@@ -35,6 +49,7 @@ class ExportViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkAll()
     }
 
     private fun createViewModel() = ExportViewModel(clipRepository, projectRepository, ffmpegProcessor)
@@ -53,6 +68,34 @@ class ExportViewModelTest {
         assertEquals("Initial progress should be 0", 0f, state.exportProgress)
         assertFalse("Export not complete initially", state.exportComplete)
         assertNull("No export path initially", state.exportPath)
+        assertNull("No error initially", state.errorMessage)
+    }
+
+    @Test
+    fun `loadClip loads clip and project`() = runTest {
+        every { clipRepository.getClipById(10L) } returns flowOf(sampleClip)
+        every { projectRepository.getProjectById(1L) } returns flowOf(sampleProject)
+
+        viewModel = createViewModel()
+        viewModel.loadClip(10L)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNotNull("Clip should be loaded", state.clip)
+        assertNotNull("Project should be loaded", state.project)
+        assertEquals(10L, state.clip?.id)
+        assertEquals(1L, state.project?.id)
+    }
+
+    @Test
+    fun `loadClip with non-existent clip leaves state empty`() = runTest {
+        every { clipRepository.getClipById(99L) } returns flowOf(null)
+
+        viewModel = createViewModel()
+        viewModel.loadClip(99L)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.clip)
     }
 
     @Test
@@ -60,6 +103,12 @@ class ExportViewModelTest {
         viewModel = createViewModel()
         viewModel.selectQuality(ExportQuality.MEDIUM)
         assertEquals(ExportQuality.MEDIUM, viewModel.uiState.value.selectedQuality)
+
+        viewModel.selectQuality(ExportQuality.ULTRA)
+        assertEquals(ExportQuality.ULTRA, viewModel.uiState.value.selectedQuality)
+
+        viewModel.selectQuality(ExportQuality.LOW)
+        assertEquals(ExportQuality.LOW, viewModel.uiState.value.selectedQuality)
     }
 
     @Test
@@ -67,6 +116,9 @@ class ExportViewModelTest {
         viewModel = createViewModel()
         viewModel.selectPlatform(PlatformPreset.INSTAGRAM_REELS)
         assertEquals(PlatformPreset.INSTAGRAM_REELS, viewModel.uiState.value.selectedPlatform)
+
+        viewModel.selectPlatform(PlatformPreset.YOUTUBE_SHORTS)
+        assertEquals(PlatformPreset.YOUTUBE_SHORTS, viewModel.uiState.value.selectedPlatform)
     }
 
     @Test
@@ -74,6 +126,9 @@ class ExportViewModelTest {
         viewModel = createViewModel()
         viewModel.selectFps(60)
         assertEquals(60, viewModel.uiState.value.selectedFps)
+
+        viewModel.selectFps(24)
+        assertEquals(24, viewModel.uiState.value.selectedFps)
     }
 
     @Test
@@ -81,6 +136,9 @@ class ExportViewModelTest {
         viewModel = createViewModel()
         viewModel.selectFormat(VideoFormat.MOV)
         assertEquals(VideoFormat.MOV, viewModel.uiState.value.selectedFormat)
+
+        viewModel.selectFormat(VideoFormat.WEBM)
+        assertEquals(VideoFormat.WEBM, viewModel.uiState.value.selectedFormat)
     }
 
     @Test
@@ -124,5 +182,43 @@ class ExportViewModelTest {
         viewModel = createViewModel()
         viewModel.selectQuality(ExportQuality.LOW)
         assertEquals("Export bitrate should match quality", ExportQuality.LOW.bitrate, viewModel.uiState.value.exportBitrate)
+    }
+
+    @Test
+    fun `exportDimensions change with platform selection`() = runTest {
+        viewModel = createViewModel()
+
+        viewModel.selectPlatform(PlatformPreset.INSTAGRAM_REELS)
+        assertEquals(1080, viewModel.uiState.value.exportWidth)
+        assertEquals(1920, viewModel.uiState.value.exportHeight)
+
+        viewModel.selectPlatform(PlatformPreset.INSTAGRAM_FEED)
+        assertEquals(1080, viewModel.uiState.value.exportWidth)
+        assertEquals(1080, viewModel.uiState.value.exportHeight)
+
+        viewModel.selectPlatform(PlatformPreset.TWITTER)
+        assertEquals(1280, viewModel.uiState.value.exportWidth)
+        assertEquals(720, viewModel.uiState.value.exportHeight)
+    }
+
+    @Test
+    fun `exportBitrate scales with quality`() = runTest {
+        viewModel = createViewModel()
+        val original = viewModel.uiState.value.exportBitrate
+
+        viewModel.selectQuality(ExportQuality.ULTRA)
+        assertTrue(viewModel.uiState.value.exportBitrate > original)
+
+        viewModel.selectQuality(ExportQuality.LOW)
+        assertTrue(viewModel.uiState.value.exportBitrate < original)
+    }
+
+    @Test
+    fun `selectPlatform updates state immediately`() = runTest {
+        viewModel = createViewModel()
+        val initial = viewModel.uiState.value.selectedPlatform
+
+        viewModel.selectPlatform(PlatformPreset.FACEBOOK)
+        assertNotEquals(initial, viewModel.uiState.value.selectedPlatform)
     }
 }

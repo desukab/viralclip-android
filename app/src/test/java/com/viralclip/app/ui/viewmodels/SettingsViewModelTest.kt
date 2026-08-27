@@ -32,12 +32,19 @@ class SettingsViewModelTest {
         coEvery { preferencesManager.updateGpuAcceleration(any()) } just Runs
         coEvery { preferencesManager.updateAutoSave(any()) } just Runs
         coEvery { preferencesManager.updateHapticFeedback(any()) } just Runs
+        coEvery { preferencesManager.updateDefaultPlatform(any()) } just Runs
+        coEvery { preferencesManager.updateDefaultQuality(any()) } just Runs
+        coEvery { preferencesManager.updateDefaultFps(any()) } just Runs
+        coEvery { preferencesManager.updateLanguage(any()) } just Runs
+        coEvery { preferencesManager.incrementProcessedVideos() } just Runs
+        coEvery { preferencesManager.incrementExportedClips() } just Runs
         coEvery { preferencesManager.clearCacheSize() } just Runs
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkAll()
     }
 
     private fun createViewModel() = SettingsViewModel(preferencesManager)
@@ -72,6 +79,15 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         coVerify { preferencesManager.updateDarkMode(false) }
+    }
+
+    @Test
+    fun `updateDarkMode with true calls preferences manager`() = runTest {
+        viewModel = createViewModel()
+        viewModel.updateDarkMode(true)
+        advanceUntilIdle()
+
+        coVerify { preferencesManager.updateDarkMode(true) }
     }
 
     @Test
@@ -141,5 +157,52 @@ class SettingsViewModelTest {
         assertEquals(256L, state.cacheSizeMb)
         assertEquals(42, state.totalProcessedVideos)
         assertEquals(100, state.totalExportedClips)
+    }
+
+    @Test
+    fun `preferences flow update reflects in state immediately`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        prefsFlow.value = prefsFlow.value.copy(
+            defaultFps = 120,
+            language = "fr"
+        )
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(120, state.defaultFps)
+        assertEquals("fr", state.language)
+    }
+
+    @Test
+    fun `multiple sequential updates are handled correctly`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.updateDarkMode(false)
+        viewModel.updateAutoSave(false)
+        viewModel.updateGpuAcceleration(false)
+        advanceUntilIdle()
+
+        coVerify { preferencesManager.updateDarkMode(false) }
+        coVerify { preferencesManager.updateAutoSave(false) }
+        coVerify { preferencesManager.updateGpuAcceleration(false) }
+    }
+
+    @Test
+    fun `initial cache size is zero`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(0L, viewModel.uiState.value.cacheSizeMb)
+    }
+
+    @Test
+    fun `initial fps is 30`() = runTest {
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(30, viewModel.uiState.value.defaultFps)
     }
 }
