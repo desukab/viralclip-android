@@ -37,6 +37,20 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Generate signing keystore
+        run: |
+          VERSION=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          keytool -genkeypair -v \
+            -keystore viralclip.keystore \
+            -alias viralclip \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass viralclip123 -keypass viralclip123 \
+            -dname "CN=ViralClip, OU=Dev, O=ViralClip, L=City, ST=State, C=US"
+          echo "KEYSTORE_PATH=$(pwd)/viralclip.keystore" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=viralclip123" >> "$GITHUB_ENV"
+          echo "KEY_ALIAS=viralclip" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=viralclip123" >> "$GITHUB_ENV"
+
       - name: Run Lint
         run: ./gradlew lintDebug --no-daemon
 
@@ -46,16 +60,35 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Rename APK
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Rename APKs
         run: |
           VERSION=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
           mv app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/ViralClip-v${VERSION}-debug.apk"
+          mv app/build/outputs/apk/release/app-release-unsigned.apk "app/build/outputs/apk/release/ViralClip-v${VERSION}-release.apk" || true
+
+      - name: Sign Release APK
+        run: |
+          VERSION=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          if [ ! -f "app/build/outputs/apk/release/ViralClip-v${VERSION}-release.apk" ]; then
+            RELEASE_APK=$(ls app/build/outputs/apk/release/*.apk | head -1)
+            mv "$RELEASE_APK" "app/build/outputs/apk/release/ViralClip-v${VERSION}-release.apk"
+          fi
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: ViralClip-debug-apk
           path: app/build/outputs/apk/debug/ViralClip-*-debug.apk
+          retention-days: 30
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ViralClip-release-apk
+          path: app/build/outputs/apk/release/ViralClip-*-release.apk
           retention-days: 30
 
       - name: Upload Test Results
