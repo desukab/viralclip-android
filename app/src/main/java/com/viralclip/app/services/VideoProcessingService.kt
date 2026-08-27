@@ -7,7 +7,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.viralclip.app.MainActivity
@@ -37,17 +36,6 @@ class VideoProcessingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        ensureForegroundType()
-    }
-
-    private fun ensureForegroundType() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            try {
-                Service::class.java.getDeclaredField("mForegroundServiceType").let {
-                    it.isAccessible = true
-                }
-            } catch (_: Exception) { }
-        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

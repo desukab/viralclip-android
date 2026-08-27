@@ -25,7 +25,10 @@ class VideoProcessingWorker @AssistedInject constructor(
         val videoUri = Uri.parse(videoUriString)
 
         return try {
-            val stateObserver = launch {
+            // Observe pipeline state for progress reporting while processing.
+            // Use a job that completes when a terminal state is reached, so doWork
+            // doesn't race with the collector.
+            val stateJob = launch {
                 pipeline.state.collectLatest { state ->
                     val (msg, progress) = when (state) {
                         is com.viralclip.app.domain.model.ProcessingState.Analyzing -> state.message to state.progress
@@ -44,7 +47,7 @@ class VideoProcessingWorker @AssistedInject constructor(
             }
 
             val result = pipeline.processVideo(videoUri, applicationContext)
-            stateObserver.cancel()
+            stateJob.cancel()
 
             preferences.incrementProcessedVideos()
             pipeline.reset()
@@ -58,7 +61,6 @@ class VideoProcessingWorker @AssistedInject constructor(
         } catch (e: kotlinx.coroutines.CancellationException) {
             Result.failure(workDataOf(KEY_ERROR to "Cancelled"))
         } catch (e: Exception) {
-            preferences.incrementProcessedVideos()
             Result.retry()
         }
     }
@@ -102,14 +104,27 @@ class ExportWorker @AssistedInject constructor(
         val clipId = inputData.getLong(KEY_CLIP_ID, -1L)
         return try {
             val file = java.io.File(outputPath)
+            // Validate the output is a real, playable video: non-empty + valid container
             if (file.exists() && file.length() > 0) {
-                preferences.incrementExportedClips()
-                Result.success(
-                    workDataOf(
-                        KEY_OUTPUT_PATH to outputPath,
-                        KEY_CLIP_ID to clipId
+                val valid = android.media.MediaMetadataRetriever().use { mmr ->
+                    runCatching {
+                        mmr.setDataSource(file.absolutePath)
+                        mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                            ?.toLongOrNull() != null
+                    }.getOrDefault(false)
+                }
+                if (valid) {
+                    preferences.incrementExportedClips()
+                    Result.success(
+                        workDataOf(
+                            KEY_OUTPUT_PATH to outputPath,
+                            KEY_CLIP_ID to clipId,
+                            KEY_FILE_SIZE to file.length()
+                        )
                     )
-                )
+                } else {
+                    Result.failure(workDataOf(KEY_ERROR to "Output file invalid or not playable"))
+                }
             } else {
                 Result.failure(workDataOf(KEY_ERROR to "Output file missing or empty"))
             }
@@ -121,6 +136,7 @@ class ExportWorker @AssistedInject constructor(
     companion object {
         const val KEY_OUTPUT_PATH = "output_path"
         const val KEY_CLIP_ID = "clip_id"
+        const val KEY_FILE_SIZE = "file_size"
         const val KEY_ERROR = "error"
         const val UNIQUE_NAME = "video_export"
 
@@ -146,9 +162,12 @@ class CacheCleanupWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
+            val cutoff = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)
             applicationContext.cacheDir.listFiles()?.forEach { file ->
-                if (file.isDirectory && file.lastModified() < System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)) {
-                    file.deleteRecursively()
+                // Skip the currently-writing temp file and non-cache ISOs
+                if (file.name.endsWith(".tmp") || file.name.endsWith(".downloading")) return@forEach
+                if (file.lastModified() < cutoff) {
+                    if (file.isDirectory) file.deleteRecursively() else file.delete()
                 }
             }
             Result.success()

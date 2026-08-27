@@ -93,9 +93,12 @@ object MemoryManager {
         return getMemoryUsagePercent() >= CRITICAL_MEMORY_THRESHOLD_PERCENT
     }
 
+    /**
+     * Hint to the runtime that GC would be beneficial.
+     * Single System.gc() call is sufficient; explicit runFinalization()
+     * and repeated calls are unreliable and not recommended.
+     */
     fun requestGC() {
-        System.gc()
-        System.runFinalization()
         System.gc()
     }
 
