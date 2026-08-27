@@ -55,8 +55,8 @@ object CacheManager {
         return memoryCaches.values.sumOf { it.size() }
     }
 
-    fun getTotalMaxCacheSize(): Int {
-        return memoryCaches.values.sumOf { it.maxSize() }
+    fun getTotalMaxCacheSize(): Long {
+        return memoryCaches.values.sumOf { it.maxSize().toLong() }
     }
 }
 
