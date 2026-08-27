@@ -903,8 +903,9 @@ fun LoadingIndicator(
     contentDescription: String = "Loading"
 ) {
     CircularProgressIndicator(
-        modifier = modifier.semantics { this.contentDescription = contentDescription },
-        modifier = Modifier.size(size.dp),
+        modifier = modifier
+            .size(size.dp)
+            .semantics { this.contentDescription = contentDescription },
         color = color,
         strokeWidth = strokeWidth.dp
     )

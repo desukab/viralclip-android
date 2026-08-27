@@ -310,6 +310,7 @@ enum class TemplateCategory(val displayName: String) {
 data class BrandPreset(
     val id: Long = 0,
     val name: String,
+    val category: String? = null,
     val primaryColor: Long = 0xFF7C3AED,
     val secondaryColor: Long = 0xFFEC4899,
     val accentColor: Long = 0xFF3B82F6,

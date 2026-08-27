@@ -6,16 +6,8 @@ import androidx.work.WorkManager
 import com.viralclip.app.data.database.ViralClipDatabase
 import com.viralclip.app.data.database.dao.*
 import com.viralclip.app.data.preferences.UserPreferencesManager
-import com.viralclip.app.data.repository.BrandPresetRepositoryImpl
-import com.viralclip.app.data.repository.CaptionRepositoryImpl
-import com.viralclip.app.data.repository.ClipRepositoryImpl
-import com.viralclip.app.data.repository.ProjectRepositoryImpl
-import com.viralclip.app.data.repository.TemplateRepositoryImpl
-import com.viralclip.app.domain.repository.BrandPresetRepository
-import com.viralclip.app.domain.repository.CaptionRepository
-import com.viralclip.app.domain.repository.ClipRepository
-import com.viralclip.app.domain.repository.ProjectRepository
-import com.viralclip.app.domain.repository.TemplateRepository
+import com.viralclip.app.data.repository.*
+import com.viralclip.app.domain.repository.*
 import com.viralclip.app.util.FileStorageManager
 import dagger.Module
 import dagger.Provides
@@ -36,7 +28,7 @@ object AppModule {
             ViralClipDatabase::class.java,
             ViralClipDatabase.DB_NAME
         )
-            .addMigrations(ViralClipDatabase.MIGRATION_1_2)
+            .addMigrations(ViralClipDatabase.MIGRATION_1_2, ViralClipDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
     }
@@ -67,6 +59,8 @@ object AppModule {
         return WorkManager.getInstance(context)
     }
 
+    // ─── Core Repositories ─────────────────────────────────────────────
+
     @Provides
     @Singleton
     fun provideProjectRepository(
@@ -90,4 +84,32 @@ object AppModule {
     @Singleton
     fun provideBrandPresetRepository(dao: BrandPresetDao): BrandPresetRepository =
         BrandPresetRepositoryImpl(dao)
+
+    // ─── Additional Repositories (stub implementations) ────────────────
+
+    @Provides
+    @Singleton
+    fun provideVideoRepository(): VideoRepository = VideoRepositoryImpl()
+
+    @Provides
+    @Singleton
+    fun provideExportRepository(): ExportRepository = ExportRepositoryImpl()
+
+    @Provides
+    @Singleton
+    fun provideSettingsRepository(
+        preferencesManager: UserPreferencesManager
+    ): SettingsRepository = SettingsRepositoryImpl(preferencesManager)
+
+    @Provides
+    @Singleton
+    fun provideAnalyticsRepository(): AnalyticsRepository = AnalyticsRepositoryImpl()
+
+    @Provides
+    @Singleton
+    fun provideCacheRepository(): CacheRepository = CacheRepositoryImpl()
+
+    @Provides
+    @Singleton
+    fun provideErrorRepository(): ErrorRepository = ErrorRepositoryImpl()
 }

@@ -64,7 +64,7 @@ class VideoProcessingPipeline @Inject constructor(
 
         val result = try {
             withTimeoutOrNull(timeoutMs) {
-                runPipelineStages(videoUri, context, maxClips)
+                runPipelineStages(videoUri, context, maxClips, videoInfo)
             }
         } catch (e: CancellationException) {
             _state.value = ProcessingState.Error("Processing cancelled")
@@ -83,7 +83,8 @@ class VideoProcessingPipeline @Inject constructor(
     private suspend fun runPipelineStages(
         videoUri: Uri,
         context: Context,
-        maxClips: Int
+        maxClips: Int,
+        videoInfo: FFmpegProcessor.VideoInfo
     ): PipelineResult = withContext(Dispatchers.Default) {
         _state.value = ProcessingState.Analyzing(0.05f, "Analyzing video…")
 

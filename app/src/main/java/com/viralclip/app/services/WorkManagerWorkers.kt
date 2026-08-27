@@ -8,6 +8,7 @@ import com.viralclip.app.data.preferences.UserPreferencesManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 @HiltWorker
@@ -145,7 +146,7 @@ class CacheCleanupWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
-            appContext.cacheDir.listFiles()?.forEach { file ->
+            applicationContext.cacheDir.listFiles()?.forEach { file ->
                 if (file.isDirectory && file.lastModified() < System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)) {
                     file.deleteRecursively()
                 }

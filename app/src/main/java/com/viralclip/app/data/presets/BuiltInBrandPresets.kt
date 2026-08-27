@@ -18,7 +18,7 @@ object BuiltInBrandPresets {
     }
 
     fun getPresetsByCategory(category: PresetCategory): List<BrandPreset> {
-        return presets.filter { it.category == category }
+        return presets.filter { it.category == category.name }
     }
 
     enum class PresetCategory(val displayName: String) {

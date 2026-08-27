@@ -74,9 +74,11 @@ class ExportService : Service() {
         if (sourceUri == null) {
             startForeground(NOTIFICATION_ID, buildNotification("Error: missing source", 0, false))
             sendErrorBroadcast("Missing source URI", clipId)
-            delaySafely(500)
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+            serviceScope.launch {
+                delaySafely(500)
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
             return
         }
 
@@ -107,9 +109,11 @@ class ExportService : Service() {
         exportJob?.cancel()
         startForeground(NOTIFICATION_ID, buildNotification("Cancelling…", 0, true))
         sendBroadcast(Intent(ACTION_EXPORT_CANCELLED))
-        delaySafely(300)
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        serviceScope.launch {
+            delaySafely(300)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     private fun startExport(

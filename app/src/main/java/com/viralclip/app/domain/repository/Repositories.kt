@@ -2,6 +2,7 @@ package com.viralclip.app.domain.repository
 
 import android.net.Uri
 import com.viralclip.app.domain.model.*
+import com.viralclip.app.util.AppError
 import kotlinx.coroutines.flow.Flow
 
 interface ProjectRepository {

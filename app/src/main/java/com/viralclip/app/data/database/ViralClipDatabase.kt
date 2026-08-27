@@ -20,7 +20,7 @@ import com.viralclip.app.data.database.entities.*
         ProcessingJobEntity::class,
         ExportedAssetEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -110,13 +110,19 @@ abstract class ViralClipDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE brand_presets ADD COLUMN category TEXT")
+            }
+        }
+
         fun build(context: Context): ViralClipDatabase {
             return Room.databaseBuilder(
                 context.applicationContext,
                 ViralClipDatabase::class.java,
                 DB_NAME
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .fallbackToDestructiveMigrationOnDowngrade()
                 .build()
         }

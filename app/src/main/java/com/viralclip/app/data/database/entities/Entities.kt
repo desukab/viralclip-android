@@ -243,6 +243,7 @@ data class TemplateEntity(
 data class BrandPresetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    val category: String? = null,
     val primaryColor: Long = 0xFF7C3AED,
     val secondaryColor: Long = 0xFFEC4899,
     val accentColor: Long = 0xFF3B82F6,
@@ -257,7 +258,7 @@ data class BrandPresetEntity(
     val updatedAt: Long = System.currentTimeMillis()
 ) {
     fun toDomain() = BrandPreset(
-        id = id, name = name,
+        id = id, name = name, category = category,
         primaryColor = primaryColor, secondaryColor = secondaryColor,
         accentColor = accentColor, fontFamily = fontFamily,
         logoPath = logoPath, watermarkEnabled = watermarkEnabled,
@@ -269,7 +270,7 @@ data class BrandPresetEntity(
 
     companion object {
         fun fromDomain(preset: BrandPreset) = BrandPresetEntity(
-            id = preset.id, name = preset.name,
+            id = preset.id, name = preset.name, category = preset.category,
             primaryColor = preset.primaryColor,
             secondaryColor = preset.secondaryColor,
             accentColor = preset.accentColor,

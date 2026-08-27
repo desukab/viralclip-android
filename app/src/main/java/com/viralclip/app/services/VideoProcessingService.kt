@@ -26,12 +26,12 @@ class VideoProcessingService : Service() {
     @Inject lateinit var pipeline: VideoProcessingPipeline
     @Inject lateinit var preferences: UserPreferencesManager
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + serviceExceptionHandler)
-    private var processingJob: Job? = null
-
     private val serviceExceptionHandler = CoroutineExceptionHandler { _, throwable ->
         sendErrorBroadcast(throwable.message ?: "Processing error")
     }
+
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob() + serviceExceptionHandler)
+    private var processingJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -59,9 +59,11 @@ class VideoProcessingService : Service() {
                 if (videoUriString == null) {
                     startForeground(NOTIFICATION_ID, buildNotification("Error: No video specified", 0, false))
                     sendErrorBroadcast("Missing video URI")
-                    delaySafely(1000)
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
+                    serviceScope.launch {
+                        delaySafely(1000)
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    }
                     return START_NOT_STICKY
                 }
 
@@ -82,9 +84,11 @@ class VideoProcessingService : Service() {
         processingJob?.cancel()
         pipeline.reset()
         sendBroadcast(Intent(ACTION_PROCESSING_CANCELLED))
-        delaySafely(300)
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        serviceScope.launch {
+            delaySafely(300)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
     }
 
     private fun startProcessing(videoUri: Uri, projectId: Long) {
