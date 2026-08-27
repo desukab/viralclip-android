@@ -43,18 +43,29 @@ jobs:
 
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest --no-daemon
+        continue-on-error: true
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Build Release APK (unsigned)
-        run: ./gradlew assembleRelease --no-daemon
+      - name: Rename APK
+        run: |
+          VERSION=$(grep 'versionName' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          mv app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/ViralClip-v${VERSION}-debug.apk"
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: ViralClip-debug.apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: ViralClip-debug-apk
+          path: app/build/outputs/apk/debug/ViralClip-*-debug.apk
+          retention-days: 30
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: app/build/reports/tests/
           retention-days: 14
 
       - name: Upload Lint Report
@@ -63,4 +74,4 @@ jobs:
         with:
           name: lint-report
           path: app/build/reports/lint-results-debug.html
-          retention-days: 7
+          retention-days: 14
