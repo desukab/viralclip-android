@@ -159,6 +159,8 @@ object ErrorHandler {
     }
 }
 
+private const val TAG = "ErrorHandler"
+
 fun createCoroutineExceptionHandler(): CoroutineExceptionHandler {
     return CoroutineExceptionHandler { _, throwable ->
         ErrorHandler.handleError(throwable)

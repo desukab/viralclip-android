@@ -290,7 +290,7 @@ object ImageUtils {
     }
 
     fun Context.saveBitmapAsThumbnail(bitmap: Bitmap, baseName: String = "thumb"): File {
-        val dir = FileUtils.getThumbnailDirectory(this)
+        val dir = with(FileUtils) { this@saveBitmapAsThumbnail.getThumbnailDirectory() }
         val file = File(dir, "${baseName}_${UUID.randomUUID()}.jpg")
         return saveBitmapToFile(bitmap, file)
     }

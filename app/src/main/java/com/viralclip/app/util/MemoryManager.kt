@@ -1,5 +1,6 @@
 package com.viralclip.app.util
 
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.collection.LruCache
 import java.io.File
@@ -15,15 +16,6 @@ class MemoryCache<K : Any, V : Any>(maxSize: Int) : LruCache<K, V>(maxSize) {
             is ByteArray -> value.size / 1024
             else -> 1
         }
-    }
-
-    override fun get(key: K): V? {
-        accessCounts.compute(key) { _, count -> (count ?: 0) + 1 }
-        return super.get(key)
-    }
-
-    override fun put(key: K, value: V): V? {
-        return super.put(key, value)
     }
 
     fun getAccessCount(key: K): Int = accessCounts[key] ?: 0
